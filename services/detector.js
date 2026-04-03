@@ -10,26 +10,34 @@ if (!log) return;
 
 const { ip, timestamp, status } = log;
 
+// SUCCESS handling
+if (status === 'SUCCESS') {
+    console.log(`✅ Successful login from IP: ${ip} at ${timestamp}`);
+    failedAttempts[ip] = []; // reset on success
+    return;
+}
+
+// FAILED handling
 if (status === 'FAILED') {
 
-    // Initialize array if not exists
     if (!failedAttempts[ip]) {
         failedAttempts[ip] = [];
     }
 
-    // Update timestamps using timeWindow utility
     failedAttempts[ip] = updateTimeWindow(
         failedAttempts[ip],
         timestamp,
         rules.TIME_WINDOW_SECONDS
     );
 
-    // Check threshold
+    console.log(`❌ Failed login from IP: ${ip}`);
+
+    // Threshold check
     if (failedAttempts[ip].length >= rules.FAILED_LOGIN_THRESHOLD) {
         alert.trigger(ip, failedAttempts[ip].length);
-
-        // Reset after alert (optional strategy)
         failedAttempts[ip] = [];
+    } else {
+        console.log(`⚠️ ${failedAttempts[ip].length} failed attempts from ${ip}`);
     }
 }
 

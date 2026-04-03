@@ -1,31 +1,39 @@
 const rules = require('../config/rules');
 const alert = require('./alert');
+const { updateTimeWindow } = require('../utils/timeWindow');
 
 let failedAttempts = {};
 
 function detect(log) {
-    if (!log) return;
+if (!log) return;
 
-    const { ip, timestamp, status } = log;
 
-    if (status === 'FAILED') {
+const { ip, timestamp, status } = log;
 
-        if (!failedAttempts[ip]) {
-            failedAttempts[ip] = [];
-        }
+if (status === 'FAILED') {
 
-        failedAttempts[ip].push(timestamp);
-
-        // Filter within time window
-        const windowStart = new Date(timestamp - rules.TIME_WINDOW_SECONDS * 1000);
-
-        failedAttempts[ip] = failedAttempts[ip].filter(t => t >= windowStart);
-
-        if (failedAttempts[ip].length >= rules.FAILED_LOGIN_THRESHOLD) {
-            alert.trigger(ip, failedAttempts[ip].length);
-            failedAttempts[ip] = []; // reset after alert
-        }
+    // Initialize array if not exists
+    if (!failedAttempts[ip]) {
+        failedAttempts[ip] = [];
     }
+
+    // Update timestamps using timeWindow utility
+    failedAttempts[ip] = updateTimeWindow(
+        failedAttempts[ip],
+        timestamp,
+        rules.TIME_WINDOW_SECONDS
+    );
+
+    // Check threshold
+    if (failedAttempts[ip].length >= rules.FAILED_LOGIN_THRESHOLD) {
+        alert.trigger(ip, failedAttempts[ip].length);
+
+        // Reset after alert (optional strategy)
+        failedAttempts[ip] = [];
+    }
+}
+
+
 }
 
 module.exports = detect;

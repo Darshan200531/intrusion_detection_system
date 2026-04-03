@@ -1,0 +1,26 @@
+{
+"name": "ids-project",
+"version": "1.0.0",
+"description": "Intrusion Detection System (IDS) for log monitoring and brute force attack detection using Node.js",
+"main": "app.js",
+"scripts": {
+"start": "node app.js",
+"dev": "nodemon app.js"
+},
+"keywords": [
+"intrusion-detection",
+"cybersecurity",
+"log-monitoring",
+"brute-force-detection",
+"nodejs",
+"ids"
+],
+"author": "Darshan BR",
+"license": "MIT",
+"dependencies": {
+"mongoose": "^8.0.0"
+},
+"devDependencies": {
+"nodemon": "^3.0.0"
+}
+}

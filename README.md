@@ -62,8 +62,8 @@ ids-project/
 ### 1️⃣ Clone the Repository
 
 ```
-git clone https://github.com/your-username/ids-project.git
-cd ids-project
+git clone https://github.com/Darshan200531/intrusion_detection_system.git
+cd intrusion_detection_system
 ```
 
 ### 2️⃣ Install Dependencies

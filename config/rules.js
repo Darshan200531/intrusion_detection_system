@@ -12,5 +12,9 @@ module.exports = {
     MODE: 'realtime',
 
     // Custom log file path (used in batch mode or for testing)
-    CUSTOM_LOG_PATH: './logs/auth.log'
+    CUSTOM_LOG_PATH: './logs/auth.log',
+
+    // MongoDB Configuration
+    MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/ids_db',
+    ENABLE_DB_STORAGE: process.env.ENABLE_DB_STORAGE !== 'false'  // set to 'false' to disable DB
 };

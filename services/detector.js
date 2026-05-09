@@ -1,47 +1,50 @@
-const rules = require('../config/rules');
-const alert = require('./alert');
-const { updateTimeWindow } = require('../utils/timeWindow');
+// Detector
+const rules = require('./rules');
 
-let failedAttempts = {};
+const attempts = {};
 
 function detect(log) {
-if (!log) return;
+    if (!log) return;
 
+    const now = Date.now();
+    const ip = log.ip;
 
-const { ip, timestamp, status } = log;
-
-// SUCCESS handling
-if (status === 'SUCCESS') {
-    console.log(`✅ Successful login from IP: ${ip} at ${timestamp}`);
-    failedAttempts[ip] = []; // reset on success
-    return;
-}
-
-// FAILED handling
-if (status === 'FAILED') {
-
-    if (!failedAttempts[ip]) {
-        failedAttempts[ip] = [];
+    // 🟢 SUCCESS LOGIN (ADD HERE FIRST)
+    if (log.type === "success_login") {
+        console.log(`🟢 ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | SUCCESS_LOGIN`);
+        return; // stop further processing
     }
 
-    failedAttempts[ip] = updateTimeWindow(
-        failedAttempts[ip],
-        timestamp,
-        rules.TIME_WINDOW_SECONDS
-    );
+    // 🔴 FAILED LOGIN
+    if (log.type === "failed_login") {
 
-    console.log(`❌ Failed login from IP: ${ip}`);
+        if (!ip) return;
 
-    // Threshold check
-    if (failedAttempts[ip].length >= rules.FAILED_LOGIN_THRESHOLD) {
-        alert.trigger(ip, failedAttempts[ip].length);
-        failedAttempts[ip] = [];
-    } else {
-        console.log(`⚠️ ${failedAttempts[ip].length} failed attempts from ${ip}`);
+        if (!attempts[ip]) {
+            attempts[ip] = [];
+        }
+
+        // Add attempt
+        attempts[ip].push(now);
+
+        // Keep only within time window
+        attempts[ip] = attempts[ip].filter(
+            t => now - t <= rules.TIME_WINDOW_SECONDS * 1000
+        );
+
+        const count = attempts[ip].length;
+
+        console.log(`❌ ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | FAILED_LOGIN`);
+
+        // 🚨 ALERT when threshold reached
+        if (count >= rules.FAILED_LOGIN_THRESHOLD) {
+            console.log(`🚨 ALERT possible Brute-force Attack! from ${ip} | ${count} attempts in ${rules.TIME_WINDOW_SECONDS}s\n`);
+
+            // 🔥 RESET after alert
+            attempts[ip] = [];
+        }
     }
-}
-
-
 }
 
 module.exports = detect;
+

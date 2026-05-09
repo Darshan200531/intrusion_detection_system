@@ -1,0 +1,4 @@
+module.exports = {
+    FAILED_LOGIN_THRESHOLD: 5,
+    TIME_WINDOW_SECONDS: 120
+};

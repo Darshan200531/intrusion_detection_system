@@ -1,16 +1,24 @@
-const fs = require('fs');
-const readline = require('readline');
+// LogReader
+const { spawn } = require('child_process');
 
 function readLogs(filePath, callback) {
-    const stream = fs.createReadStream(filePath);
 
-    const rl = readline.createInterface({
-        input: stream,
-        crlfDelay: Infinity
+    console.log("📡 Real-time monitoring started...\n");
+
+    const tail = spawn('sudo', ['tail', '-F', filePath]);
+
+    tail.stdout.on('data', (data) => {
+        const lines = data.toString().split("\n");
+
+        lines.forEach(line => {
+            if (line.trim()) {
+                callback(line);
+            }
+        });
     });
 
-    rl.on('line', (line) => {
-        callback(line);
+    tail.stderr.on('data', (err) => {
+        console.error("Error:", err.toString());
     });
 }
 

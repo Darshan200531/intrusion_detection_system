@@ -1,16 +1,43 @@
+// Parser
 function parseLog(line) {
-    const regex = /(\d+-\d+-\d+ \d+:\d+:\d+).*IP:(\S+).*USER:(\S+).*STATUS:(\S+)/;
 
-    const match = line.match(regex);
+    // 🔴 SSH Failed login
+    let failed = line.match(/Failed password.*for (invalid user )?(\w+) from (\d+\.\d+\.\d+\.\d+)/);
+    if (failed) {
+        return {
+            type: "failed_login",
+            username: failed[2],
+            ip: failed[3],
+            raw: line,
+            timestamp: new Date()
+        };
+    }
 
-    if (!match) return null;
+    // 🟢 SSH Successful login
+    let success = line.match(/Accepted password for (\w+) from (\d+\.\d+\.\d+\.\d+)/);
+    if (success) {
+        return {
+            type: "success_login",
+            username: success[1],
+            ip: success[2],
+            raw: line,
+            timestamp: new Date()
+        };
+    }
 
-    return {
-        timestamp: new Date(match[1]),
-        ip: match[2],
-        username: match[3],
-        status: match[4]
-    };
+    // ⚠️ SUDO command detection (IMPORTANT FIX)
+    let sudo = line.match(/sudo:.*USER=(\w+)\s*;\s*COMMAND=(.*)/);
+    if (sudo) {
+        return {
+            type: "sudo",
+            username: sudo[1],
+            command: sudo[2],
+            raw: line,
+            timestamp: new Date()
+        };
+    }
+
+    return null;
 }
 
 module.exports = parseLog;

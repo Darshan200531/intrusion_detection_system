@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDS Alert Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="shield-icon">🛡️</span> IDS Alert Dashboard</h1>
+            <div class="status">
+                <span class="pulse"></span> Monitoring active
+            </div>
+        </header>
+
+        <main>
+            <section class="stats-cards">
+                <div class="card" id="card-success">
+                    <h3>Success Logins</h3>
+                    <p class="value" id="count-success">0</p>
+                </div>
+                <div class="card" id="card-failed">
+                    <h3>Failed Logins</h3>
+                    <p class="value" id="count-failed">0</p>
+                </div>
+                <div class="card alert-card" id="card-attacks">
+                    <h3>Attacks Blocked</h3>
+                    <p class="value" id="count-attacks">0</p>
+                </div>
+            </section>
+
+            <section class="alerts-section">
+                <h2>Recent Activity</h2>
+                <div class="alerts-container" id="alerts-container">
+                    <!-- Alerts will be injected here dynamically -->
+                    <div class="empty-state" id="empty-state">
+                        <p>No activity recorded yet...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

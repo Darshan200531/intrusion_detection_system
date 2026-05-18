@@ -1,6 +1,9 @@
 // Detector
 const rules = require('./rules');
+const { blockIp } = require('./blocker');
+const EventEmitter = require('events');
 
+const detectorEvents = new EventEmitter();
 const attempts = {};
 
 function detect(log) {
@@ -12,6 +15,7 @@ function detect(log) {
     // 🟢 SUCCESS LOGIN (ADD HERE FIRST)
     if (log.type === "success_login") {
         console.log(`🟢 ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | SUCCESS_LOGIN`);
+        detectorEvents.emit('alert', { type: 'success', username: log.username, ip, timestamp: log.timestamp.toLocaleString() });
         return; // stop further processing
     }
 
@@ -35,10 +39,15 @@ function detect(log) {
         const count = attempts[ip].length;
 
         console.log(`❌ ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | FAILED_LOGIN`);
+        detectorEvents.emit('alert', { type: 'failed', username: log.username, ip, timestamp: log.timestamp.toLocaleString() });
 
         // 🚨 ALERT when threshold reached
         if (count >= rules.FAILED_LOGIN_THRESHOLD) {
             console.log(`🚨 ALERT possible Brute-force Attack! from ${ip} | ${count} attempts in ${rules.TIME_WINDOW_SECONDS}s\n`);
+            
+            // Block IP
+            blockIp(ip);
+            detectorEvents.emit('alert', { type: 'attack', ip, count, timestamp: new Date().toLocaleString() });
 
             // 🔥 RESET after alert
             attempts[ip] = [];
@@ -46,5 +55,5 @@ function detect(log) {
     }
 }
 
-module.exports = detect;
+module.exports = { detect, detectorEvents };
 

@@ -1,11 +1,8 @@
 // Parser
 function parseLog(line) {
 
-    // 🔴 Failed login (SSH)
+    // 🔴 SSH Failed login
     let failed = line.match(/Failed password.*for (invalid user )?(\w+) from (\d+\.\d+\.\d+\.\d+)/);
-    // 🔴 Failed login (Local GUI/TTY)
-    let localFailed = line.match(/authentication failure;.*user=([a-zA-Z0-9_-]+)/);
-
     if (failed) {
         return {
             type: "failed_login",
@@ -14,46 +11,19 @@ function parseLog(line) {
             raw: line,
             timestamp: new Date()
         };
-    } else if (localFailed) {
-        return {
-            type: "failed_login",
-            username: localFailed[1],
-            ip: "localhost",
-            raw: line,
-            timestamp: new Date()
-        };
     }
 
-    // 🟢 Successful login (SSH)
-    let sshSuccess = line.match(/Accepted password for (\w+) from (\d+\.\d+\.\d+\.\d+)/);
-    // 🟢 Successful login (Local GUI/TTY)
-    let sessionOpened = line.match(/pam_unix\((.*?):session\): session opened for user (\w+)/);
-    
-    if (sshSuccess) {
+    // 🟢 SSH Successful login
+    let success = line.match(/Accepted password for (\w+) from (\d+\.\d+\.\d+\.\d+)/);
+    if (success) {
         return {
             type: "success_login",
-            username: sshSuccess[1],
-            ip: sshSuccess[2],
+            username: success[1],
+            ip: success[2],
             raw: line,
             timestamp: new Date()
         };
-    } else if (sessionOpened) {
-        let service = sessionOpened[1];
-        let username = sessionOpened[2];
-        
-        // Ignore cron, sshd (already handled), and systemd-user (background processes)
-        if (service !== 'cron' && service !== 'sshd' && service !== 'systemd-user') {
-            return {
-                type: "success_login",
-                username: username,
-                ip: "localhost",
-                raw: line,
-                timestamp: new Date()
-            };
-        }
     }
-
-
 
     // ⚠️ SUDO command detection
     let sudo = line.match(/sudo:.*USER=(\w+)\s*;\s*COMMAND=(.*)/);

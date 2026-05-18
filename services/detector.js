@@ -6,6 +6,20 @@ const EventEmitter = require('events');
 const detectorEvents = new EventEmitter();
 const attempts = {};
 
+// Deduplication: track recently seen type+username+ip combos (within 3 seconds)
+const recentEvents = {};
+const DEDUP_WINDOW_MS = 3000;
+
+function isDuplicate(type, username, ip) {
+    const key = `${type}|${username}|${ip}`;
+    const now = Date.now();
+    if (recentEvents[key] && now - recentEvents[key] < DEDUP_WINDOW_MS) {
+        return true; // duplicate within window
+    }
+    recentEvents[key] = now;
+    return false;
+}
+
 function detect(log) {
     if (!log) return;
 
@@ -18,19 +32,20 @@ function detect(log) {
         return; // stop further processing
     }
 
-    // 🟢 SUCCESS LOGIN (ADD HERE FIRST)
+    // 🟢 SUCCESS LOGIN
     if (log.type === "success_login") {
+        if (isDuplicate('success_login', log.username, ip)) return;
         console.log(`🟢 ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | SUCCESS_LOGIN`);
         detectorEvents.emit('alert', { type: 'success', username: log.username, ip, timestamp: log.timestamp.toLocaleString() });
-        return; // stop further processing
+        return;
     }
 
 
 
     // 🔴 FAILED LOGIN
     if (log.type === "failed_login") {
-
         if (!ip) return;
+        if (isDuplicate('failed_login', log.username, ip)) return;
 
         if (!attempts[ip]) {
             attempts[ip] = [];

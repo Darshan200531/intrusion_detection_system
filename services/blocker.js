@@ -1,6 +1,11 @@
 const { exec } = require('child_process');
 
+const blockedIps = new Set();
+
 function blockIp(ip) {
+    if (blockedIps.has(ip)) return;
+    blockedIps.add(ip);
+
     console.log(`🛡️  Attempting to block IP: ${ip}...`);
 
     if (process.platform === 'win32') {
@@ -12,6 +17,7 @@ function blockIp(ip) {
         exec(command, (error, stdout, stderr) => {
             if (error) {
                 console.error(`❌ Failed to block IP ${ip}: ${error.message}`);
+                blockedIps.delete(ip);
                 return;
             }
             if (stderr) {
@@ -23,4 +29,8 @@ function blockIp(ip) {
     }
 }
 
-module.exports = { blockIp };
+function isBlocked(ip) {
+    return blockedIps.has(ip);
+}
+
+module.exports = { blockIp, isBlocked };

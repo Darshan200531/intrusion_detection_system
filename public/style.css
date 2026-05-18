@@ -98,7 +98,8 @@ h1 {
     border-radius: 1rem;
     padding: 1.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    cursor: pointer;
 }
 
 .card:hover {
@@ -127,6 +128,14 @@ h1 {
     border-color: rgba(239, 68, 68, 0.3);
     background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(127, 29, 29, 0.2));
 }
+
+.card.active {
+    transform: translateY(-5px);
+}
+
+#card-success.active { border-color: var(--success-color); box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+#card-failed.active { border-color: var(--warning-color); box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); }
+#card-attacks.active { border-color: var(--danger-color); box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
 
 .alerts-section h2 {
     font-size: 1.5rem;
@@ -170,9 +179,16 @@ h1 {
     border-left: 4px solid var(--info-color);
 }
 
+.alert-item.hidden {
+    display: none !important;
+}
+
 .alert-item.success { border-left-color: var(--success-color); }
 .alert-item.failed { border-left-color: var(--warning-color); }
-.alert-item.logout { border-left-color: var(--info-color); }
+.alert-item.blocked_attempt {
+    border-left-color: #6b7280;
+    background: rgba(107, 114, 128, 0.1);
+}
 .alert-item.attack {
     border-left-color: var(--danger-color);
     background: rgba(239, 68, 68, 0.1);
@@ -200,7 +216,7 @@ h1 {
 
 .alert-item.success .alert-title { color: var(--success-color); }
 .alert-item.failed .alert-title { color: var(--warning-color); }
-.alert-item.logout .alert-title { color: var(--info-color); }
+.alert-item.blocked_attempt .alert-title { color: #9ca3af; }
 .alert-item.attack .alert-title { color: var(--danger-color); }
 
 .alert-details {

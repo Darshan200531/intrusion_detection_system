@@ -1,6 +1,6 @@
 // Detector
 const rules = require('./rules');
-const { blockIp } = require('./blocker');
+const { blockIp, isBlocked } = require('./blocker');
 const EventEmitter = require('events');
 
 const detectorEvents = new EventEmitter();
@@ -12,6 +12,12 @@ function detect(log) {
     const now = Date.now();
     const ip = log.ip;
 
+    if (ip && ip !== 'localhost' && isBlocked(ip)) {
+        console.log(`🚫 Blocked IP Attempt: ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | DENIED`);
+        detectorEvents.emit('alert', { type: 'blocked_attempt', username: log.username, ip, timestamp: log.timestamp.toLocaleString() });
+        return; // stop further processing
+    }
+
     // 🟢 SUCCESS LOGIN (ADD HERE FIRST)
     if (log.type === "success_login") {
         console.log(`🟢 ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | SUCCESS_LOGIN`);
@@ -19,12 +25,7 @@ function detect(log) {
         return; // stop further processing
     }
 
-    // 🚪 LOGOUT EVENT
-    if (log.type === "logout") {
-        console.log(`🚪 ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | LOGOUT`);
-        detectorEvents.emit('alert', { type: 'logout', username: log.username, ip, timestamp: log.timestamp.toLocaleString() });
-        return; // stop further processing
-    }
+
 
     // 🔴 FAILED LOGIN
     if (log.type === "failed_login") {

@@ -53,34 +53,7 @@ function parseLog(line) {
         }
     }
 
-    // 🚪 Logout (SSH & Local)
-    let sessionClosed = line.match(/pam_unix\((.*?):session\): session closed for user (\w+)/);
-    let sshDisconnect = line.match(/Disconnected from user (\w+) (\d+\.\d+\.\d+\.\d+)/);
 
-    if (sshDisconnect) {
-        return {
-            type: "logout",
-            username: sshDisconnect[1],
-            ip: sshDisconnect[2],
-            raw: line,
-            timestamp: new Date()
-        };
-    } else if (sessionClosed) {
-        let service = sessionClosed[1];
-        let username = sessionClosed[2];
-        
-        // Ignore cron and systemd-user
-        if (service !== 'cron' && service !== 'systemd-user') {
-            let ipMatch = line.match(/(\d+\.\d+\.\d+\.\d+)/);
-            return {
-                type: "logout",
-                username: username,
-                ip: ipMatch ? ipMatch[1] : "localhost",
-                raw: line,
-                timestamp: new Date()
-            };
-        }
-    }
 
     // ⚠️ SUDO command detection
     let sudo = line.match(/sudo:.*USER=(\w+)\s*;\s*COMMAND=(.*)/);

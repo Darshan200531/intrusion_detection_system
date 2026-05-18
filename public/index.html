@@ -11,8 +11,16 @@
     <div class="container">
         <header>
             <h1><span class="shield-icon">🛡️</span> IDS Alert Dashboard</h1>
-            <div class="status">
-                <span class="pulse"></span> Monitoring active
+            <div class="header-right">
+                <div class="simulate-controls">
+                    <span class="sim-label">Simulate:</span>
+                    <button class="sim-btn sim-success" id="sim-success" onclick="simulate('success')">✅ Login</button>
+                    <button class="sim-btn sim-failed" id="sim-failed" onclick="simulate('failed')">⚠️ Failed</button>
+                    <button class="sim-btn sim-attack" id="sim-attack" onclick="simulate('attack')">🚨 Attack</button>
+                </div>
+                <div class="status">
+                    <span class="pulse"></span> Monitoring active
+                </div>
             </div>
         </header>
 

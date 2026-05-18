@@ -42,6 +42,43 @@ header {
     border-bottom: 1px solid var(--border-color);
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.simulate-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sim-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-right: 0.25rem;
+}
+
+.sim-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.sim-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.sim-btn:active { transform: translateY(0); }
+
+.sim-success { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+.sim-failed  { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+.sim-attack  { background: rgba(239, 68, 68, 0.2);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
 h1 {
     font-size: 2rem;
     font-weight: 700;

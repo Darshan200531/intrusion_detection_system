@@ -1,4 +1,13 @@
-// Add keyframes for shake effect dynamically
+// Simulate test events via the API
+function simulate(type) {
+    fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type })
+    });
+}
+
+
 const style = document.createElement('style');
 style.innerHTML = `
 @keyframes shake {

@@ -120,6 +120,7 @@ h1 {
 
 #card-success .value { color: var(--success-color); }
 #card-failed .value { color: var(--warning-color); }
+#card-logout .value { color: var(--info-color); }
 #card-attacks .value { color: var(--danger-color); }
 
 .alert-card {
@@ -171,6 +172,7 @@ h1 {
 
 .alert-item.success { border-left-color: var(--success-color); }
 .alert-item.failed { border-left-color: var(--warning-color); }
+.alert-item.logout { border-left-color: var(--info-color); }
 .alert-item.attack {
     border-left-color: var(--danger-color);
     background: rgba(239, 68, 68, 0.1);
@@ -198,6 +200,7 @@ h1 {
 
 .alert-item.success .alert-title { color: var(--success-color); }
 .alert-item.failed .alert-title { color: var(--warning-color); }
+.alert-item.logout .alert-title { color: var(--info-color); }
 .alert-item.attack .alert-title { color: var(--danger-color); }
 
 .alert-details {

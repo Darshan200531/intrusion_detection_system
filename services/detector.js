@@ -19,6 +19,13 @@ function detect(log) {
         return; // stop further processing
     }
 
+    // 🚪 LOGOUT EVENT
+    if (log.type === "logout") {
+        console.log(`🚪 ${log.username} | ${ip} | ${log.timestamp.toLocaleString()} | LOGOUT`);
+        detectorEvents.emit('alert', { type: 'logout', username: log.username, ip, timestamp: log.timestamp.toLocaleString() });
+        return; // stop further processing
+    }
+
     // 🔴 FAILED LOGIN
     if (log.type === "failed_login") {
 

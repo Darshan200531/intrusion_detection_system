@@ -2,13 +2,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const alertsContainer = document.getElementById('alerts-container');
     const emptyState = document.getElementById('empty-state');
     
-    // Counters
     let countSuccess = 0;
     let countFailed = 0;
+    let countLogout = 0;
     let countAttacks = 0;
 
     const successEl = document.getElementById('count-success');
     const failedEl = document.getElementById('count-failed');
+    const logoutEl = document.getElementById('count-logout');
     const attacksEl = document.getElementById('count-attacks');
 
     // Setup SSE Connection
@@ -35,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (data.type === 'failed') {
             countFailed++;
             failedEl.textContent = countFailed;
+        } else if (data.type === 'logout') {
+            countLogout++;
+            if (logoutEl) logoutEl.textContent = countLogout;
         } else if (data.type === 'attack') {
             countAttacks++;
             attacksEl.textContent = countAttacks;
@@ -55,6 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (data.type === 'failed') {
             icon = '⚠️';
             title = 'Failed Login';
+            details += ` | User: ${data.username}`;
+        } else if (data.type === 'logout') {
+            icon = '🚪';
+            title = 'User Logout';
             details += ` | User: ${data.username}`;
         } else if (data.type === 'attack') {
             icon = '🚨';

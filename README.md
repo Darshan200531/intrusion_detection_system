@@ -1,213 +1,408 @@
-# 🚨 Intrusion Detection System (IDS) - Log Monitoring & Brute Force Detection
+# 🛡️ Intrusion Detection System (IDS)
 
-## 📌 Project Overview
+A real-time **Host-Based Intrusion Detection System (HIDS)** developed using **Node.js**, **Express.js**, **MongoDB**, and **Socket.IO** to monitor **SSH**, **FTP**, and **SMTP** activities on Ubuntu Linux.
 
-This project is a **Log-Based Intrusion Detection System (IDS)** developed using **Node.js**. It monitors authentication logs, detects suspicious login activities, and triggers alerts when potential **brute force attacks** are identified.
-
-The system analyzes login attempts in real-time and applies predefined rules such as **failed login thresholds within a time window**.
+The system continuously monitors Linux log files, detects suspicious activities based on predefined rules, stores events in MongoDB, and displays real-time alerts through a web dashboard.
 
 ---
 
-## 🎯 Features
+## 📌 Features
 
-* 📥 Real-time log monitoring
-* 🔍 Log parsing (IP, Username, Timestamp, Status)
-* 🚨 Brute force attack detection
-* ⚙️ Configurable detection rules
-* 🔔 Alert system (console-based)
-* 🗄️ Optional MongoDB integration for storing attack data
+### SSH Monitoring
+- Monitor `/var/log/auth.log`
+- Detect successful login
+- Detect failed login
+- Detect root login
+- Detect repeated authentication failures
+- Generate real-time alerts
+
+### FTP Monitoring
+- Monitor `/var/log/vsftpd.log`
+- Detect FTP login
+- Detect file upload
+- Detect file download
+- Detect file deletion
+- Detect suspicious file uploads
+- Detect anonymous login (optional)
+
+### SMTP Monitoring
+- Monitor `/var/log/mail.log`
+- Detect email sent
+- Detect email received
+- Detect SMTP authentication
+- Detect abnormal email activity
+
+### Dashboard
+- Live alerts using Socket.IO
+- Event statistics
+- Severity levels
+- Search and filtering
+- Historical event logs
+
+### Database
+- MongoDB stores:
+  - Username
+  - Source IP
+  - Timestamp
+  - Service
+  - Event
+  - Severity
+  - Description
 
 ---
 
-## 🧠 System Architecture
+# 🏗️ System Architecture
 
 ```
-Log File → Log Reader → Parser → Detection Engine → Alert System → Database (Optional)
+                   Ubuntu Client VM
+          SSH / FTP / SMTP Requests
+                    |
+                    |
+        ----------------------------
+                    |
+             Ubuntu IDS Server
+        ----------------------------
+              SSH Server
+              FTP Server
+              SMTP Server
+              Node.js IDS
+              MongoDB
+              Socket.IO
+              Web Dashboard
 ```
 
 ---
 
-## 📁 Project Structure
+# 🛠️ Technologies Used
+
+| Technology | Purpose |
+|------------|----------|
+| Ubuntu | Operating System |
+| Node.js | Backend |
+| Express.js | Web Framework |
+| MongoDB | Database |
+| Mongoose | MongoDB ODM |
+| Socket.IO | Real-time Alerts |
+| Bootstrap | Frontend UI |
+| VSFTPD | FTP Server |
+| OpenSSH | SSH Server |
+| Postfix | SMTP Server |
+
+---
+
+# 📂 Project Structure
 
 ```
-ids-project/
-│
-├── logs/
-│   └── auth.log
+IDS/
 │
 ├── config/
-│   └── rules.js
+│   ├── config.js
+│   ├── rules.js
+│
+├── detectors/
+│   ├── sshDetector.js
+│   ├── ftpDetector.js
+│   ├── smtpDetector.js
 │
 ├── services/
-│   ├── logReader.js
-│   ├── parser.js
-│   ├── detector.js
-│   └── alert.js
+│   ├── authMonitor.js
+│   ├── ftpMonitor.js
+│   ├── smtpMonitor.js
 │
 ├── models/
-│   └── attackModel.js
+│   ├── Alert.js
+│   ├── SSHLog.js
+│   ├── FTPLog.js
+│   ├── SMTPLog.js
 │
-├── utils/
-│   └── timeWindow.js
+├── routes/
+│   ├── alerts.js
+│   ├── sshRoutes.js
+│   ├── ftpRoutes.js
+│   ├── smtpRoutes.js
+│
+├── public/
+│   ├── css/
+│   ├── js/
+│   ├── images/
+│
+├── views/
 │
 ├── app.js
+├── server.js
 ├── package.json
 └── README.md
 ```
 
 ---
 
-## ⚙️ Installation
+# ⚙️ Installation
 
-### 1️⃣ Clone the Repository
+## Clone Repository
 
+```bash
+git clone https://github.com/yourusername/IDS.git
+
+cd IDS
 ```
-git clone https://github.com/Darshan200531/intrusion_detection_system.git
-cd intrusion_detection_system
-```
 
-### 2️⃣ Install Dependencies
+---
 
-```
+## Install Dependencies
+
+```bash
 npm install
 ```
 
-### 3️⃣ Run the Application
+---
 
+## Install MongoDB
+
+```bash
+sudo apt update
+
+sudo apt install mongodb
 ```
-node app.js
+
+Start MongoDB
+
+```bash
+sudo systemctl start mongod
+
+sudo systemctl enable mongod
 ```
 
 ---
 
-## 📄 Log Format
+## Install FTP Server
 
-The system expects logs in the following format:
-
-```
-YYYY-MM-DD HH:MM:SS IP:<ip_address> USER:<username> STATUS:<SUCCESS/FAILED>
+```bash
+sudo apt install vsftpd
 ```
 
-### Example:
+Start FTP
 
-```
-2026-04-02 10:15:30 IP:192.168.1.10 USER:admin STATUS:FAILED
-```
+```bash
+sudo systemctl start vsftpd
 
----
-
-## ⚙️ Configuration (Detection Rules)
-
-Modify detection rules in:
-
-📂 `config/rules.js`
-
-```
-FAILED_LOGIN_THRESHOLD = 5
-TIME_WINDOW_SECONDS = 120
-```
-
-* **FAILED_LOGIN_THRESHOLD** → Number of failed attempts allowed
-* **TIME_WINDOW_SECONDS** → Time window for detection
-
----
-
-## 🚨 How Detection Works
-
-1. The system reads logs line-by-line
-2. Extracts key fields:
-
-   * IP Address
-   * Username
-   * Timestamp
-   * Login Status
-3. Tracks failed login attempts per IP
-4. If attempts exceed threshold within time window → ALERT
-
----
-
-## 🔔 Alert Example
-
-```
-🚨 ALERT: Possible Brute Force Attack!
-IP: 192.168.1.10
-Failed Attempts: 5
-Time: 2026-04-02T10:16:10.000Z
+sudo systemctl enable vsftpd
 ```
 
 ---
 
-## 🗄️ MongoDB Integration (Optional)
+## Install SMTP Server
 
-To store detected attacks:
-
-1. Install mongoose:
-
-```
-npm install mongoose
-```
-
-2. Configure database connection in `app.js`
-
-3. Use `models/attackModel.js` to store attack logs
-
----
-
-## 🚀 Future Enhancements
-
-* 📧 Email alerts using NodeMailer
-* 🌐 Web dashboard (HTML/CSS/React)
-* 📊 Data visualization
-* 🌍 Geo-IP tracking
-* 🔒 Automatic IP blocking
-* 🤖 AI-based anomaly detection
-
----
-
-## 🧪 Testing
-
-Add sample logs in:
-
-📂 `logs/auth.log`
-
-Then run:
-
-```
-node app.js
+```bash
+sudo apt install postfix
 ```
 
 ---
 
-## 📚 Technologies Used
+## Start Application
 
-* Node.js
-* JavaScript
-* MongoDB (optional)
-* File System (fs module)
+```bash
+npm start
+```
 
----
+Server starts on
 
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to fork the repository and submit pull requests.
-
----
-
-## 📜 License
-
-This project is open-source and available under the **MIT License**.
+```
+http://localhost:3000
+```
 
 ---
 
-## 👨‍💻 Author
+# 🔍 Log Files Monitored
 
-Developed by **Darshan BR**
+SSH
+
+```
+/var/log/auth.log
+```
+
+FTP
+
+```
+/var/log/vsftpd.log
+```
+
+SMTP
+
+```
+/var/log/mail.log
+```
 
 ---
 
- ## Acknowledgements
+# 🚀 Demonstration Commands
 
-* Inspired by real-world cybersecurity monitoring systems
-* Useful for academic and mini-project implementations
+## SSH
+
+Successful Login
+
+```bash
+ssh student@192.168.56.101
+```
 
 ---
+
+Failed Login
+
+Enter incorrect password.
+
+---
+
+## FTP
+
+Connect
+
+```bash
+ftp 192.168.56.101
+```
+
+Upload
+
+```ftp
+put report.txt
+```
+
+Download
+
+```ftp
+get report.txt
+```
+
+Delete
+
+```ftp
+delete report.txt
+```
+
+Exit
+
+```ftp
+bye
+```
+
+---
+
+## SMTP
+
+Send Email
+
+```bash
+echo "Hello IDS" | mail -s "SMTP Test" user@localhost
+```
+
+Multiple Emails
+
+```bash
+for i in {1..10}
+do
+echo "Mail $i" | mail -s "Test$i" user@localhost
+done
+```
+
+---
+
+# 📊 Sample Dashboard
+
+Displays
+
+- SSH Alerts
+- FTP Alerts
+- SMTP Alerts
+- Severity Levels
+- Statistics
+- Charts
+
+---
+
+# 📂 MongoDB
+
+Open MongoDB
+
+```bash
+mongosh
+```
+
+Show Databases
+
+```javascript
+show dbs
+```
+
+Use IDS Database
+
+```javascript
+use ids
+```
+
+Show Collections
+
+```javascript
+show collections
+```
+
+View Logs
+
+```javascript
+db.logs.find().pretty()
+```
+
+---
+
+# 🚨 Detection Rules
+
+## SSH
+
+- Successful Login
+- Failed Login
+- Root Login
+- Multiple Failed Logins
+
+## FTP
+
+- Login
+- Upload
+- Download
+- Delete
+- Suspicious File Upload
+
+## SMTP
+
+- Email Sent
+- Email Received
+- SMTP Authentication
+- High Email Rate
+
+---
+
+# 📈 Future Enhancements
+
+- Machine Learning-based detection
+- Automatic IP blocking
+- Email notifications
+- Threat intelligence integration
+- Docker deployment
+- Cloud monitoring
+- WebSocket-based analytics
+
+---
+
+# 📚 References
+
+- Ubuntu Documentation
+- Node.js Documentation
+- MongoDB Documentation
+- VSFTPD Documentation
+- OpenSSH Documentation
+- Postfix Documentation
+- OWASP
+- MITRE ATT&CK Framework
+
+---
+
+# 📄 License
+
+This project is developed for educational and research purposes as a Final Year Engineering Project.

@@ -7,24 +7,6 @@
  *  - Delegation to FTP, SMTP, Analytics, and History handlers
  */
 
-// ─── Simulate API ─────────────────────────────────────────────────────────────
-function simulate(type) {
-    fetch('/api/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type })
-    });
-}
-
-// ─── Shake animation (brute-force) ───────────────────────────────────────────
-const shakeStyle = document.createElement('style');
-shakeStyle.innerHTML = `
-@keyframes shake {
-  0%,100% { transform: translate(0); }
-  10%,50%,90% { transform: translate(-3px, 1px); }
-  30%,70% { transform: translate(3px, -1px); }
-}`;
-document.head.appendChild(shakeStyle);
 
 // ─── Socket.IO ────────────────────────────────────────────────────────────────
 const socket = io();

@@ -7,7 +7,6 @@ function simulate(type) {
     });
 }
 
-
 const style = document.createElement('style');
 style.innerHTML = `
 @keyframes shake {
@@ -26,7 +25,26 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
+// Initialize Global Socket.IO
+const socket = io();
+
 document.addEventListener('DOMContentLoaded', () => {
+    // ─── Tab Logic ──────────────────────────────────────────────────────────────
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.style.display = 'none');
+            
+            btn.classList.add('active');
+            const targetId = btn.getAttribute('data-target');
+            document.getElementById(targetId).style.display = 'block';
+            document.getElementById(targetId).classList.add('active');
+        });
+    });
+
     const alertsContainer = document.getElementById('alerts-container');
     const emptyState = document.getElementById('empty-state');
 
@@ -48,11 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── Filter Logic ───────────────────────────────────────────────────────────
     function toggleFilter(filterType, cardElement) {
         if (currentFilter === filterType) {
-            // Click same card again → clear filter (show all)
             currentFilter = null;
             cardElement.classList.remove('active');
         } else {
-            // Remove active from the previously selected card
             document.querySelector('.card.active')?.classList.remove('active');
             currentFilter = filterType;
             cardElement.classList.add('active');
@@ -65,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cardAttacks.addEventListener('click', () => toggleFilter('attacks', cardAttacks));
 
     function applyFilter() {
-        const allAlerts = document.querySelectorAll('.alert-item');
+        const allAlerts = document.querySelectorAll('#ssh-view .alert-item');
         let visibleCount = 0;
 
         allAlerts.forEach(alert => {
@@ -85,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Show/hide empty state
         if (allAlerts.length === 0) {
             emptyState.style.display = 'block';
             emptyState.innerHTML = '<p>No activity recorded yet...</p>';
@@ -97,21 +112,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ─── SSE Connection ──────────────────────────────────────────────────────────
-    const evtSource = new EventSource('/api/alerts/stream');
+    // ─── Socket.IO Listeners ───────────────────────────────────────────────────
+    socket.on('ssh_history', (history) => {
+        history.forEach(data => handleNewSSHAlert(data));
+    });
 
-    evtSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        handleNewAlert(data);
-    };
+    socket.on('alert', (data) => {
+        if (data.service === 'SSH') {
+            handleNewSSHAlert(data);
+        } else if (data.service === 'FTP') {
+            if (window.handleNewFTPAlert) window.handleNewFTPAlert(data);
+        } else if (data.service === 'SMTP') {
+            if (window.handleNewSMTPAlert) window.handleNewSMTPAlert(data);
+        }
+    });
 
-    evtSource.onerror = function(err) {
-        console.error('EventSource failed:', err);
-    };
-
-    // ─── Alert Handler ───────────────────────────────────────────────────────────
-    function handleNewAlert(data) {
-        // Update counters
+    // ─── Alert Handler (SSH) ───────────────────────────────────────────────────
+    function handleNewSSHAlert(data) {
         if (data.type === 'success') {
             countSuccess++;
             successEl.textContent = countSuccess;
@@ -122,9 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             countAttacks++;
             attacksEl.textContent = countAttacks;
         }
-        // blocked_attempt doesn't bump a separate counter – it shows in the feed
 
-        // Build icon/title/details
         let icon    = 'ℹ️';
         let title   = 'Activity';
         let details = `IP: <span class="alert-ip">${data.ip}</span>`;
@@ -150,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
             details += ` | User: ${data.username} | Action: Access Blocked`;
         }
 
-        // Create and populate the element
         const alertEl = document.createElement('div');
         alertEl.className = `alert-item ${data.type}`;
         alertEl.innerHTML = `
@@ -161,22 +175,18 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="alert-time">${data.timestamp}</div>
         `;
 
-        // Respect the active filter for incoming alerts
         let isVisible = true;
         if (currentFilter === 'success' && data.type !== 'success') isVisible = false;
         if (currentFilter === 'failed'  && data.type !== 'failed')  isVisible = false;
         if (currentFilter === 'attacks' && data.type !== 'attack' && data.type !== 'blocked_attempt') isVisible = false;
         if (!isVisible) alertEl.classList.add('hidden');
 
-        // Prepend to feed
         alertsContainer.prepend(alertEl);
 
-        // Cap at 50 items
         if (alertsContainer.children.length > 50) {
             alertsContainer.removeChild(alertsContainer.lastChild);
         }
 
-        // Re-evaluate empty state
         applyFilter();
     }
 });

@@ -13,7 +13,7 @@
             <h1><span class="shield-icon">🛡️</span> IDS Alert Dashboard</h1>
             <div class="header-right">
                 <div class="simulate-controls">
-                    <span class="sim-label">Simulate:</span>
+                    <span class="sim-label">Simulate SSH:</span>
                     <button class="sim-btn sim-success" id="sim-success" onclick="simulate('success')">✅ Login</button>
                     <button class="sim-btn sim-failed" id="sim-failed" onclick="simulate('failed')">⚠️ Failed</button>
                     <button class="sim-btn sim-attack" id="sim-attack" onclick="simulate('attack')">🚨 Attack</button>
@@ -24,35 +24,88 @@
             </div>
         </header>
 
+        <nav class="tabs">
+            <button class="tab-btn active" data-target="ssh-view">SSH Activity</button>
+            <button class="tab-btn" data-target="ftp-view">FTP Activity</button>
+            <button class="tab-btn" data-target="smtp-view">SMTP Activity</button>
+        </nav>
+
         <main>
-            <section class="stats-cards">
-                <div class="card" id="card-success">
-                    <h3>Success Logins</h3>
-                    <p class="value" id="count-success">0</p>
-                </div>
-                <div class="card" id="card-failed">
-                    <h3>Failed Logins</h3>
-                    <p class="value" id="count-failed">0</p>
-                </div>
-
-                <div class="card alert-card" id="card-attacks">
-                    <h3>Attacks Blocked</h3>
-                    <p class="value" id="count-attacks">0</p>
-                </div>
-            </section>
-
-            <section class="alerts-section">
-                <h2>Recent Activity</h2>
-                <div class="alerts-container" id="alerts-container">
-                    <!-- Alerts will be injected here dynamically -->
-                    <div class="empty-state" id="empty-state">
-                        <p>No activity recorded yet...</p>
+            <!-- SSH View -->
+            <div id="ssh-view" class="tab-content active">
+                <section class="stats-cards">
+                    <div class="card" id="card-success">
+                        <h3>Success Logins (SSH)</h3>
+                        <p class="value" id="count-success">0</p>
                     </div>
-                </div>
-            </section>
+                    <div class="card" id="card-failed">
+                        <h3>Failed Logins (SSH)</h3>
+                        <p class="value" id="count-failed">0</p>
+                    </div>
+                    <div class="card alert-card" id="card-attacks">
+                        <h3>Attacks Blocked (SSH)</h3>
+                        <p class="value" id="count-attacks">0</p>
+                    </div>
+                </section>
+                <section class="alerts-section">
+                    <h2>SSH Recent Activity</h2>
+                    <div class="alerts-container" id="alerts-container">
+                        <div class="empty-state" id="empty-state">
+                            <p>No activity recorded yet...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- FTP View -->
+            <div id="ftp-view" class="tab-content" style="display: none;">
+                <section class="stats-cards">
+                    <div class="card">
+                        <h3>Total FTP Alerts</h3>
+                        <p class="value" id="count-ftp-total">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Recent Events (24h)</h3>
+                        <p class="value" id="count-ftp-recent">0</p>
+                    </div>
+                </section>
+                <section class="alerts-section">
+                    <h2>FTP Recent Activity</h2>
+                    <div class="alerts-container" id="ftp-alerts-container">
+                        <div class="empty-state" id="ftp-empty-state">
+                            <p>No activity recorded yet...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- SMTP View -->
+            <div id="smtp-view" class="tab-content" style="display: none;">
+                <section class="stats-cards">
+                    <div class="card">
+                        <h3>Total SMTP Alerts</h3>
+                        <p class="value" id="count-smtp-total">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Recent Events (24h)</h3>
+                        <p class="value" id="count-smtp-recent">0</p>
+                    </div>
+                </section>
+                <section class="alerts-section">
+                    <h2>SMTP Recent Activity</h2>
+                    <div class="alerts-container" id="smtp-alerts-container">
+                        <div class="empty-state" id="smtp-empty-state">
+                            <p>No activity recorded yet...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/ftpAlerts.js"></script>
+    <script src="js/smtpAlerts.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

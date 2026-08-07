@@ -1,35 +1,42 @@
 const express = require('express');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const connectDB = require('./config/db');
+
+// SSH modules
 const readLogs = require('./services/logReader');
 const parseLog = require('./services/parser');
 const { detect, detectorEvents } = require('./services/detector');
 
+// FTP modules
+const { startFTPMonitor } = require('./services/ftpMonitor');
+const { ftpDetectorEvents } = require('./detectors/ftpDetector');
+const ftpRoutes = require('./routes/ftpRoutes');
+
+// SMTP modules
+const { startSMTPMonitor } = require('./services/smtpMonitor');
+const { smtpDetectorEvents } = require('./detectors/smtpDetector');
+const smtpRoutes = require('./routes/smtpRoutes');
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
 const PORT = process.env.PORT || 3000;
+
+// Connect to Database
+connectDB();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-let clients = [];
-let alertHistory = []; // Keep last 100 alerts in memory
+// Routes for new services
+app.use('/api/ftp', ftpRoutes);
+app.use('/api/smtp', smtpRoutes);
 
-// ─── SSE Stream ──────────────────────────────────────────────────────────────
-app.get('/api/alerts/stream', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    // Send all past alerts immediately on connect
-    alertHistory.forEach(alert => {
-        res.write(`data: ${JSON.stringify(alert)}\n\n`);
-    });
-
-    clients.push(res);
-
-    req.on('close', () => {
-        clients = clients.filter(client => client !== res);
-    });
-});
+let alertHistory = []; // Keep last 100 SSH alerts in memory
 
 // ─── History API ─────────────────────────────────────────────────────────────
 app.get('/api/alerts/history', (req, res) => {
@@ -45,7 +52,6 @@ app.post('/api/simulate', (req, res) => {
     } else if (type === 'failed') {
         detect({ type: 'failed_login', username: 'hacker', ip: '9.8.7.6', timestamp: new Date() });
     } else if (type === 'attack') {
-        // Simulate 5 rapid failed logins from same IP
         for (let i = 0; i < 5; i++) {
             detect({ type: 'failed_login', username: 'hacker', ip: '6.6.6.6', timestamp: new Date() });
         }
@@ -54,15 +60,34 @@ app.post('/api/simulate', (req, res) => {
     res.json({ ok: true });
 });
 
-// ─── Broadcast + Store Alerts ────────────────────────────────────────────────
-detectorEvents.on('alert', (data) => {
-    alertHistory.push(data);
-    if (alertHistory.length > 100) alertHistory.shift(); // cap at 100
-
-    clients.forEach(client => {
-        client.write(`data: ${JSON.stringify(data)}\n\n`);
-    });
+// ─── Socket.IO Real-Time Alerts ──────────────────────────────────────────────
+io.on('connection', (socket) => {
+    console.log('✅ Client connected to Socket.IO');
+    // Send history of SSH alerts to new clients to maintain previous functionality
+    socket.emit('ssh_history', alertHistory);
 });
+
+// Broadcast SSH Alerts
+detectorEvents.on('alert', (data) => {
+    // Add a service flag for the dashboard
+    data.service = 'SSH';
+    
+    alertHistory.push(data);
+    if (alertHistory.length > 100) alertHistory.shift();
+
+    io.emit('alert', data);
+});
+
+// Broadcast FTP Alerts
+ftpDetectorEvents.on('alert', (data) => {
+    io.emit('alert', data);
+});
+
+// Broadcast SMTP Alerts
+smtpDetectorEvents.on('alert', (data) => {
+    io.emit('alert', data);
+});
+
 
 // ─── Log Monitoring ──────────────────────────────────────────────────────────
 const LOG_FILE = '/var/log/auth.log';
@@ -75,6 +100,10 @@ setTimeout(() => {
     console.log(`✅ Web Dashboard available at http://localhost:${PORT}\n`);
     console.log("USER        | IP          | TIME-STAMP                 | LOGIN-TYPE");
     console.log("--------------------------------------------------------------------\n");
+    
+    // Start FTP and SMTP Monitors (paths can be configured if needed)
+    startFTPMonitor();
+    startSMTPMonitor();
 }, 2000);
 
 readLogs(LOG_FILE, (line) => {
@@ -86,6 +115,6 @@ readLogs(LOG_FILE, (line) => {
     }
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
 });

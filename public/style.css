@@ -282,3 +282,57 @@ h1 {
     border: 1px dashed var(--border-color);
     border-radius: 1rem;
 }
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    color: var(--text-color);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    color: var(--info-color);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.tab-content {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* FTP and SMTP alerts */
+.ftp-alert, .smtp-alert {
+    border-left: 4px solid var(--info-color);
+}
+.ftp-alert.low, .smtp-alert.low { border-left-color: var(--info-color); }
+.ftp-alert.medium, .smtp-alert.medium { border-left-color: var(--warning-color); }
+.ftp-alert.high, .smtp-alert.high { border-left-color: var(--danger-color); }
+.ftp-alert.critical, .smtp-alert.critical { 
+    border-left-color: #991b1b;
+    background: rgba(153, 27, 27, 0.2);
+    box-shadow: 0 0 15px rgba(153, 27, 27, 0.4);
+}
+

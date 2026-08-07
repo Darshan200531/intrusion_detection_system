@@ -6,104 +6,172 @@
     <title>IDS Alert Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><span class="shield-icon">🛡️</span> IDS Alert Dashboard</h1>
-            <div class="header-right">
-                <div class="simulate-controls">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><span class="shield-icon">🛡️</span> HIDS</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-target="dashboard-view">📊 Overview</button>
+                <button class="nav-btn" data-target="ssh-view">🔑 SSH Activity</button>
+                <button class="nav-btn" data-target="ftp-view">📁 FTP Activity</button>
+                <button class="nav-btn" data-target="smtp-view">✉️ SMTP Activity</button>
+                <button class="nav-btn" data-target="history-view">📜 History Logs</button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="simulate-controls sidebar-sim">
                     <span class="sim-label">Simulate SSH:</span>
-                    <button class="sim-btn sim-success" id="sim-success" onclick="simulate('success')">✅ Login</button>
-                    <button class="sim-btn sim-failed" id="sim-failed" onclick="simulate('failed')">⚠️ Failed</button>
-                    <button class="sim-btn sim-attack" id="sim-attack" onclick="simulate('attack')">🚨 Attack</button>
+                    <div class="sidebar-sim-btns">
+                        <button class="sim-btn sim-success" onclick="simulate('success')">✅</button>
+                        <button class="sim-btn sim-failed" onclick="simulate('failed')">⚠️</button>
+                        <button class="sim-btn sim-attack" onclick="simulate('attack')">🚨</button>
+                    </div>
                 </div>
                 <div class="status">
                     <span class="pulse"></span> Monitoring active
                 </div>
             </div>
-        </header>
+        </aside>
 
-        <nav class="tabs">
-            <button class="tab-btn active" data-target="ssh-view">SSH Activity</button>
-            <button class="tab-btn" data-target="ftp-view">FTP Activity</button>
-            <button class="tab-btn" data-target="smtp-view">SMTP Activity</button>
-        </nav>
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <h1 id="page-title">Analytics Overview</h1>
+            </header>
 
-        <main>
-            <!-- SSH View -->
-            <div id="ssh-view" class="tab-content active">
-                <section class="stats-cards">
-                    <div class="card" id="card-success">
-                        <h3>Success Logins (SSH)</h3>
-                        <p class="value" id="count-success">0</p>
-                    </div>
-                    <div class="card" id="card-failed">
-                        <h3>Failed Logins (SSH)</h3>
-                        <p class="value" id="count-failed">0</p>
-                    </div>
-                    <div class="card alert-card" id="card-attacks">
-                        <h3>Attacks Blocked (SSH)</h3>
-                        <p class="value" id="count-attacks">0</p>
-                    </div>
-                </section>
-                <section class="alerts-section">
-                    <h2>SSH Recent Activity</h2>
-                    <div class="alerts-container" id="alerts-container">
-                        <div class="empty-state" id="empty-state">
-                            <p>No activity recorded yet...</p>
+            <div class="content-wrapper">
+                <!-- Dashboard (Analytics) View -->
+                <div id="dashboard-view" class="view-section active">
+                    <section class="stats-cards" id="overview-cards">
+                        <!-- Populated by JS -->
+                    </section>
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <canvas id="alertsChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="servicesChart"></canvas>
                         </div>
                     </div>
-                </section>
-            </div>
+                </div>
 
-            <!-- FTP View -->
-            <div id="ftp-view" class="tab-content" style="display: none;">
-                <section class="stats-cards">
-                    <div class="card">
-                        <h3>Total FTP Alerts</h3>
-                        <p class="value" id="count-ftp-total">0</p>
-                    </div>
-                    <div class="card">
-                        <h3>Recent Events (24h)</h3>
-                        <p class="value" id="count-ftp-recent">0</p>
-                    </div>
-                </section>
-                <section class="alerts-section">
-                    <h2>FTP Recent Activity</h2>
-                    <div class="alerts-container" id="ftp-alerts-container">
-                        <div class="empty-state" id="ftp-empty-state">
-                            <p>No activity recorded yet...</p>
+                <!-- SSH View -->
+                <div id="ssh-view" class="view-section" style="display: none;">
+                    <section class="stats-cards">
+                        <div class="card" id="card-success">
+                            <h3>Success Logins (SSH)</h3>
+                            <p class="value" id="count-success">0</p>
                         </div>
-                    </div>
-                </section>
-            </div>
+                        <div class="card" id="card-failed">
+                            <h3>Failed Logins (SSH)</h3>
+                            <p class="value" id="count-failed">0</p>
+                        </div>
+                        <div class="card alert-card" id="card-attacks">
+                            <h3>Attacks Blocked (SSH)</h3>
+                            <p class="value" id="count-attacks">0</p>
+                        </div>
+                    </section>
+                    <section class="alerts-section">
+                        <h2>SSH Live Feed</h2>
+                        <div class="alerts-container" id="alerts-container">
+                            <div class="empty-state" id="empty-state">
+                                <p>No activity recorded yet...</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
 
-            <!-- SMTP View -->
-            <div id="smtp-view" class="tab-content" style="display: none;">
-                <section class="stats-cards">
-                    <div class="card">
-                        <h3>Total SMTP Alerts</h3>
-                        <p class="value" id="count-smtp-total">0</p>
-                    </div>
-                    <div class="card">
-                        <h3>Recent Events (24h)</h3>
-                        <p class="value" id="count-smtp-recent">0</p>
-                    </div>
-                </section>
-                <section class="alerts-section">
-                    <h2>SMTP Recent Activity</h2>
-                    <div class="alerts-container" id="smtp-alerts-container">
-                        <div class="empty-state" id="smtp-empty-state">
-                            <p>No activity recorded yet...</p>
+                <!-- FTP View -->
+                <div id="ftp-view" class="view-section" style="display: none;">
+                    <section class="stats-cards">
+                        <div class="card">
+                            <h3>Total FTP Alerts</h3>
+                            <p class="value" id="count-ftp-total">0</p>
                         </div>
+                        <div class="card">
+                            <h3>Recent Events (24h)</h3>
+                            <p class="value" id="count-ftp-recent">0</p>
+                        </div>
+                    </section>
+                    <section class="alerts-section">
+                        <h2>FTP Live Feed</h2>
+                        <div class="alerts-container" id="ftp-alerts-container">
+                            <div class="empty-state" id="ftp-empty-state">
+                                <p>No activity recorded yet...</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- SMTP View -->
+                <div id="smtp-view" class="view-section" style="display: none;">
+                    <section class="stats-cards">
+                        <div class="card">
+                            <h3>Total SMTP Alerts</h3>
+                            <p class="value" id="count-smtp-total">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Recent Events (24h)</h3>
+                            <p class="value" id="count-smtp-recent">0</p>
+                        </div>
+                    </section>
+                    <section class="alerts-section">
+                        <h2>SMTP Live Feed</h2>
+                        <div class="alerts-container" id="smtp-alerts-container">
+                            <div class="empty-state" id="smtp-empty-state">
+                                <p>No activity recorded yet...</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- History View -->
+                <div id="history-view" class="view-section" style="display: none;">
+                    <div class="history-controls">
+                        <input type="text" id="history-search" placeholder="Search by IP, user, rule...">
+                        <select id="history-service-filter">
+                            <option value="ALL">All Services</option>
+                            <option value="SSH">SSH</option>
+                            <option value="FTP">FTP</option>
+                            <option value="SMTP">SMTP</option>
+                        </select>
+                        <select id="history-severity-filter">
+                            <option value="ALL">All Severities</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
                     </div>
-                </section>
+                    <div class="table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Service</th>
+                                    <th>Severity</th>
+                                    <th>IP / User</th>
+                                    <th>Event</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/history.js"></script>
     <script src="js/ftpAlerts.js"></script>
     <script src="js/smtpAlerts.js"></script>
     <script src="script.js"></script>

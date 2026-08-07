@@ -20,6 +20,9 @@ const { startSMTPMonitor } = require('./services/smtpMonitor');
 const { smtpDetectorEvents } = require('./detectors/smtpDetector');
 const smtpRoutes = require('./routes/smtpRoutes');
 
+// Analytics modules
+const analyticsRoutes = require('./routes/analyticsRoutes');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -35,6 +38,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Routes for new services
 app.use('/api/ftp', ftpRoutes);
 app.use('/api/smtp', smtpRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 let alertHistory = []; // Keep last 100 SSH alerts in memory
 

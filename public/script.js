@@ -1,4 +1,13 @@
-// Simulate test events via the API
+/**
+ * script.js
+ * Core dashboard script:
+ *  - Sidebar navigation
+ *  - Socket.IO listener for all services
+ *  - SSH live-feed handler
+ *  - Delegation to FTP, SMTP, Analytics, and History handlers
+ */
+
+// ─── Simulate API ─────────────────────────────────────────────────────────────
 function simulate(type) {
     fetch('/api/simulate', {
         method: 'POST',
@@ -7,52 +16,62 @@ function simulate(type) {
     });
 }
 
-const style = document.createElement('style');
-style.innerHTML = `
+// ─── Shake animation (brute-force) ───────────────────────────────────────────
+const shakeStyle = document.createElement('style');
+shakeStyle.innerHTML = `
 @keyframes shake {
-  0% { transform: translate(1px, 1px) rotate(0deg); }
-  10% { transform: translate(-1px, -2px) rotate(-1deg); }
-  20% { transform: translate(-3px, 0px) rotate(1deg); }
-  30% { transform: translate(3px, 2px) rotate(0deg); }
-  40% { transform: translate(1px, -1px) rotate(1deg); }
-  50% { transform: translate(-1px, 2px) rotate(-1deg); }
-  60% { transform: translate(-3px, 1px) rotate(0deg); }
-  70% { transform: translate(3px, 1px) rotate(-1deg); }
-  80% { transform: translate(-1px, -1px) rotate(1deg); }
-  90% { transform: translate(1px, 2px) rotate(0deg); }
-  100% { transform: translate(1px, -2px) rotate(-1deg); }
-}
-`;
-document.head.appendChild(style);
+  0%,100% { transform: translate(0); }
+  10%,50%,90% { transform: translate(-3px, 1px); }
+  30%,70% { transform: translate(3px, -1px); }
+}`;
+document.head.appendChild(shakeStyle);
 
-// Initialize Global Socket.IO
+// ─── Socket.IO ────────────────────────────────────────────────────────────────
 const socket = io();
 
-document.addEventListener('DOMContentLoaded', () => {
-    // ─── Tab Logic ──────────────────────────────────────────────────────────────
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
+// ─── Page titles per view ─────────────────────────────────────────────────────
+const PAGE_TITLES = {
+    'dashboard-view': 'Analytics Overview',
+    'ssh-view':       'SSH Activity',
+    'ftp-view':       'FTP Activity',
+    'smtp-view':      'SMTP Activity',
+    'history-view':   'History Logs'
+};
 
-    tabBtns.forEach(btn => {
+// ─── Sidebar Navigation ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const navBtns       = document.querySelectorAll('.nav-btn');
+    const viewSections  = document.querySelectorAll('.view-section');
+    const pageTitleEl   = document.getElementById('page-title');
+
+    navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.style.display = 'none');
-            
+            const target = btn.getAttribute('data-target');
+
+            // Swap active button
+            navBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            const targetId = btn.getAttribute('data-target');
-            document.getElementById(targetId).style.display = 'block';
-            document.getElementById(targetId).classList.add('active');
+
+            // Swap view
+            viewSections.forEach(sec => {
+                if (sec.id === target) {
+                    sec.style.display = 'block';
+                } else {
+                    sec.style.display = 'none';
+                }
+            });
+
+            // Update topbar title
+            if (pageTitleEl) pageTitleEl.textContent = PAGE_TITLES[target] || 'Dashboard';
         });
     });
 
+    // ─── SSH counters + feed ─────────────────────────────────────────────────
     const alertsContainer = document.getElementById('alerts-container');
-    const emptyState = document.getElementById('empty-state');
+    const emptyState      = document.getElementById('empty-state');
 
-    let currentFilter = null;
-
-    // Counters
     let countSuccess = 0;
-    let countFailed = 0;
+    let countFailed  = 0;
     let countAttacks = 0;
 
     const successEl = document.getElementById('count-success');
@@ -63,48 +82,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardFailed  = document.getElementById('card-failed');
     const cardAttacks = document.getElementById('card-attacks');
 
-    // ─── Filter Logic ───────────────────────────────────────────────────────────
-    function toggleFilter(filterType, cardElement) {
+    // SSH card filter
+    let currentFilter = null;
+
+    function toggleFilter(filterType, cardEl) {
         if (currentFilter === filterType) {
             currentFilter = null;
-            cardElement.classList.remove('active');
+            cardEl.classList.remove('active');
         } else {
-            document.querySelector('.card.active')?.classList.remove('active');
+            document.querySelector('#ssh-view .card.active')?.classList.remove('active');
             currentFilter = filterType;
-            cardElement.classList.add('active');
+            cardEl.classList.add('active');
         }
-        applyFilter();
+        applySSHFilter();
     }
 
-    cardSuccess.addEventListener('click', () => toggleFilter('success', cardSuccess));
-    cardFailed.addEventListener('click',  () => toggleFilter('failed',  cardFailed));
-    cardAttacks.addEventListener('click', () => toggleFilter('attacks', cardAttacks));
+    cardSuccess?.addEventListener('click', () => toggleFilter('success', cardSuccess));
+    cardFailed?.addEventListener('click',  () => toggleFilter('failed',  cardFailed));
+    cardAttacks?.addEventListener('click', () => toggleFilter('attacks', cardAttacks));
 
-    function applyFilter() {
-        const allAlerts = document.querySelectorAll('#ssh-view .alert-item');
-        let visibleCount = 0;
+    function applySSHFilter() {
+        const items = document.querySelectorAll('#alerts-container .alert-item');
+        let visible = 0;
 
-        allAlerts.forEach(alert => {
-            let isVisible = true;
+        items.forEach(item => {
+            let show = true;
+            if (currentFilter === 'success' && !item.classList.contains('success')) show = false;
+            if (currentFilter === 'failed'  && !item.classList.contains('failed'))  show = false;
+            if (currentFilter === 'attacks' && !item.classList.contains('attack') && !item.classList.contains('blocked_attempt')) show = false;
 
-            if (currentFilter === 'success' && !alert.classList.contains('success')) isVisible = false;
-            if (currentFilter === 'failed'  && !alert.classList.contains('failed'))  isVisible = false;
-            if (currentFilter === 'attacks'
-                && !alert.classList.contains('attack')
-                && !alert.classList.contains('blocked_attempt')) isVisible = false;
-
-            if (isVisible) {
-                alert.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                alert.classList.add('hidden');
-            }
+            item.classList.toggle('hidden', !show);
+            if (show) visible++;
         });
 
-        if (allAlerts.length === 0) {
+        if (!emptyState) return;
+        if (items.length === 0) {
             emptyState.style.display = 'block';
             emptyState.innerHTML = '<p>No activity recorded yet...</p>';
-        } else if (visibleCount === 0) {
+        } else if (visible === 0) {
             emptyState.style.display = 'block';
             emptyState.innerHTML = '<p>No activity for this filter...</p>';
         } else {
@@ -112,62 +127,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ─── Socket.IO Listeners ───────────────────────────────────────────────────
-    socket.on('ssh_history', (history) => {
+    // ─── Socket.IO listeners ──────────────────────────────────────────────────
+    socket.on('ssh_history', history => {
         history.forEach(data => handleNewSSHAlert(data));
     });
 
-    socket.on('alert', (data) => {
-        if (data.service === 'SSH') {
-            handleNewSSHAlert(data);
-        } else if (data.service === 'FTP') {
-            if (window.handleNewFTPAlert) window.handleNewFTPAlert(data);
-        } else if (data.service === 'SMTP') {
-            if (window.handleNewSMTPAlert) window.handleNewSMTPAlert(data);
+    socket.on('alert', data => {
+        const svc = data.service;
+
+        // Update analytics live
+        if (typeof updateAnalyticsOnAlert === 'function') updateAnalyticsOnAlert(svc);
+
+        // Update history live (normalise shape)
+        if (typeof window.prependHistoryRow === 'function') {
+            window.prependHistoryRow({
+                service:       svc,
+                timestamp:     new Date().toISOString(),
+                sourceIp:      data.ip,
+                username:      data.username,
+                eventType:     data.type,
+                severity:      data.severity || 'low',
+                message:       data.message  || '',
+                detectionRule: data.detectionRule || null
+            });
         }
+
+        if (svc === 'SSH')  handleNewSSHAlert(data);
+        if (svc === 'FTP'  && window.handleNewFTPAlert)  window.handleNewFTPAlert(data);
+        if (svc === 'SMTP' && window.handleNewSMTPAlert) window.handleNewSMTPAlert(data);
     });
 
-    // ─── Alert Handler (SSH) ───────────────────────────────────────────────────
+    // ─── SSH alert renderer ───────────────────────────────────────────────────
     function handleNewSSHAlert(data) {
-        if (data.type === 'success') {
-            countSuccess++;
-            successEl.textContent = countSuccess;
-        } else if (data.type === 'failed') {
-            countFailed++;
-            failedEl.textContent = countFailed;
-        } else if (data.type === 'attack') {
-            countAttacks++;
-            attacksEl.textContent = countAttacks;
-        }
+        if (data.type === 'success') { countSuccess++; if (successEl) successEl.textContent = countSuccess; }
+        else if (data.type === 'failed') { countFailed++;  if (failedEl)  failedEl.textContent  = countFailed; }
+        else if (data.type === 'attack') { countAttacks++; if (attacksEl) attacksEl.textContent = countAttacks; }
 
-        let icon    = 'ℹ️';
-        let title   = 'Activity';
+        let icon = 'ℹ️', title = 'Activity';
         let details = `IP: <span class="alert-ip">${data.ip}</span>`;
 
         if (data.type === 'success') {
-            icon    = '✅';
-            title   = 'Successful Login';
+            icon = '✅'; title = 'Successful Login';
             details += ` | User: ${data.username}`;
         } else if (data.type === 'failed') {
-            icon    = '⚠️';
-            title   = 'Failed Login';
+            icon = '⚠️'; title = 'Failed Login';
             details += ` | User: ${data.username}`;
         } else if (data.type === 'attack') {
-            icon    = '🚨';
-            title   = 'BRUTE FORCE BLOCKED';
-            details += ` | Attempts: ${data.count} | Action: IP Dropped`;
-
+            icon = '🚨'; title = 'BRUTE FORCE BLOCKED';
+            details += ` | Attempts: ${data.count} | IP Blocked`;
             document.body.style.animation = 'shake 0.5s';
             setTimeout(() => { document.body.style.animation = ''; }, 500);
         } else if (data.type === 'blocked_attempt') {
-            icon    = '🚫';
-            title   = 'Blocked IP Denied';
-            details += ` | User: ${data.username} | Action: Access Blocked`;
+            icon = '🚫'; title = 'Blocked IP Denied';
+            details += ` | User: ${data.username}`;
         }
 
-        const alertEl = document.createElement('div');
-        alertEl.className = `alert-item ${data.type}`;
-        alertEl.innerHTML = `
+        const el = document.createElement('div');
+        el.className = `alert-item ${data.type}`;
+        el.innerHTML = `
             <div class="alert-content">
                 <div class="alert-title">${icon} ${title}</div>
                 <div class="alert-details">${details}</div>
@@ -175,18 +192,19 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="alert-time">${data.timestamp}</div>
         `;
 
-        let isVisible = true;
-        if (currentFilter === 'success' && data.type !== 'success') isVisible = false;
-        if (currentFilter === 'failed'  && data.type !== 'failed')  isVisible = false;
-        if (currentFilter === 'attacks' && data.type !== 'attack' && data.type !== 'blocked_attempt') isVisible = false;
-        if (!isVisible) alertEl.classList.add('hidden');
+        // Apply current filter
+        let show = true;
+        if (currentFilter === 'success' && data.type !== 'success') show = false;
+        if (currentFilter === 'failed'  && data.type !== 'failed')  show = false;
+        if (currentFilter === 'attacks' && data.type !== 'attack' && data.type !== 'blocked_attempt') show = false;
+        if (!show) el.classList.add('hidden');
 
-        alertsContainer.prepend(alertEl);
-
-        if (alertsContainer.children.length > 50) {
-            alertsContainer.removeChild(alertsContainer.lastChild);
+        if (alertsContainer) {
+            alertsContainer.prepend(el);
+            // Cap at 50
+            if (alertsContainer.children.length > 51) alertsContainer.removeChild(alertsContainer.lastChild);
         }
 
-        applyFilter();
+        applySSHFilter();
     }
 });

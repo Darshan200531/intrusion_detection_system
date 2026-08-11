@@ -124,10 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.prependHistoryRow === 'function') {
             window.prependHistoryRow({
                 service:       svc,
-                timestamp:     new Date().toISOString(),
+                timestamp:     data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
                 sourceIp:      data.ip,
                 username:      data.username,
-                eventType:     data.type,
+                eventType:     data.eventType || data.type,
                 severity:      data.severity || 'low',
                 message:       data.message  || '',
                 detectionRule: data.detectionRule || null

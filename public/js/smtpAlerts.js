@@ -48,34 +48,36 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSMTPStats();
         }
 
+        const eventType = data.type || data.eventType || 'unknown';
         let icon = 'ℹ️';
         if (data.severity === 'critical') icon = '🚨';
         else if (data.severity === 'high') icon = '⚠️';
         else if (data.severity === 'medium') icon = '👀';
 
-        let title = data.type.replace('_', ' ').toUpperCase();
-        let details = `IP: <span class="alert-ip">${data.ip}</span>`;
+        let title = eventType.replace(/_/g, ' ').toUpperCase();
+        let details = `IP: <span class="alert-ip">${data.ip || '—'}</span>`;
         if (data.username) details += ` | User: ${data.username}`;
-        details += `<br><small>${data.message}</small>`;
+        if (data.message) details += `<br><small>${data.message}</small>`;
 
         const alertEl = document.createElement('div');
-        alertEl.className = `alert-item smtp-alert ${data.severity}`;
+        alertEl.className = `alert-item smtp-alert ${data.severity || 'low'}`;
         alertEl.innerHTML = `
             <div class="alert-content">
                 <div class="alert-title">${icon} ${title}</div>
                 <div class="alert-details">${details}</div>
             </div>
-            <div class="alert-time">${data.timestamp}</div>
+            <div class="alert-time">${data.timestamp || ''}</div>
         `;
+
+        // Hide empty state before prepending
+        if (smtpEmptyState) smtpEmptyState.style.display = 'none';
 
         smtpAlertsContainer.prepend(alertEl);
 
-        if (smtpAlertsContainer.children.length > 50) {
-            smtpAlertsContainer.removeChild(smtpAlertsContainer.lastChild);
-        }
-
-        if (smtpEmptyState) {
-            smtpEmptyState.style.display = 'none';
+        // Cap at 50 alert items (exclude the empty-state element)
+        const alertItems = smtpAlertsContainer.querySelectorAll('.alert-item');
+        if (alertItems.length > 50) {
+            alertItems[alertItems.length - 1].remove();
         }
     };
 });

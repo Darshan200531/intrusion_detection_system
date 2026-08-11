@@ -68,7 +68,7 @@ function startSMTPMonitor(logFilePath = '/var/log/mail.log') {
             console.warn(`⚠️ SMTP Log file ${logFilePath} not found.`);
         }
     } else {
-        const tail = spawn('sudo', ['tail', '-F', logFilePath]);
+        const tail = spawn('sudo', ['tail', '-n', '0', '-F', logFilePath]);
         tail.stdout.on('data', (data) => {
             const lines = data.toString().split("\n");
             lines.forEach(line => {

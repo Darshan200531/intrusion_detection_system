@@ -158,23 +158,95 @@ function parseVsftpdLog(line) {
 /*
  * Start FTP log monitoring
  */
-function startFTPMonitor(logFilePath = '/var/log/vsftpd.log') {
+
+ function startFTPMonitor(logFilePath = '/var/log/vsftpd.log') {
 
     console.log(`📡 Starting FTP Log Monitor on: ${logFilePath}`);
 
-
     // Check whether log exists
-
     if (!fs.existsSync(logFilePath)) {
-
         console.error(
             `❌ FTP log file not found: ${logFilePath}`
         );
-
         return;
     }
 
+    /*
+     * IMPORTANT:
+     *
+     * Node.js should not use:
+     * sudo tail -F
+     *
+     * because sudo may require an interactive password.
+     *
+     * Make sure the user running the IDS has permission
+     * to read /var/log/vsftpd.log.
+     */
 
+    const tail = spawn(
+        'tail',
+        ['-F', logFilePath]
+    );
+
+    /*
+     * Receive new log data
+     */
+    tail.stdout.on('data', (data) => {
+
+        const lines = data
+            .toString()
+            .split('\n');
+
+        lines.forEach((line) => {
+
+            if (!line.trim()) {
+                return;
+            }
+
+            const parsed = parseVsftpdLog(line);
+
+            if (parsed) {
+
+                console.log(
+                    '📡 FTP EVENT DETECTED:',
+                    parsed
+                );
+
+                // Send event to detection engine
+                detectFTP(parsed);
+            }
+        });
+    });
+
+    /*
+     * Handle errors
+     */
+    tail.stderr.on('data', (data) => {
+
+        console.error(
+            '❌ FTP Tail Error:',
+            data.toString()
+        );
+
+    });
+
+    tail.on('error', (error) => {
+
+        console.error(
+            '❌ FTP Monitor Error:',
+            error
+        );
+
+    });
+
+    tail.on('close', (code) => {
+
+        console.log(
+            `FTP monitor stopped with code ${code}`
+        );
+
+    });
+}
     /*
      * IMPORTANT:
      *

@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const FTPLog = require('../models/FTPLog');
 
-// Get all FTP alerts
+// Get all FTP activity logs (all events, not just alerted ones)
 router.get('/alerts', async (req, res) => {
     try {
-        const logs = await FTPLog.find({ status: 'alerted' }).sort({ timestamp: -1 }).limit(100);
+        const logs = await FTPLog.find({}).sort({ timestamp: -1 }).limit(100).lean();
         res.json(logs);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -15,12 +15,12 @@ router.get('/alerts', async (req, res) => {
 // Get FTP stats for dashboard charts
 router.get('/stats', async (req, res) => {
     try {
-        const totalAlerts = await FTPLog.countDocuments({ status: 'alerted' });
+        const totalAlerts = await FTPLog.countDocuments({});
         const recentEvents = await FTPLog.countDocuments({ 
             timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } 
         });
         
-        // Group by rule
+        // Group by rule (only alerted events have rules)
         const ruleStats = await FTPLog.aggregate([
             { $match: { status: 'alerted' } },
             { $group: { _id: '$detectionRule', count: { $sum: 1 } } }

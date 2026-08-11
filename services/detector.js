@@ -22,7 +22,7 @@ function detect(log) {
     // 🚫 Check if IP is already blocked
     if (ip && ip !== 'localhost' && isBlocked(ip)) {
         console.log(`🚫 Blocked IP Attempt: ${log.username} | ${ip} | ${timestamp.toLocaleString()} | DENIED`);
-        detectorEvents.emit('alert', { type: 'blocked_attempt', username: log.username, ip, timestamp: timestamp.toLocaleString() });
+        detectorEvents.emit('alert', { type: 'blocked_attempt', username: log.username, ip, timestamp: timestamp.toLocaleString(), severity: 'high', message: `Blocked IP attempted access: ${ip}` });
         
         saveLog({
             timestamp: timestamp,
@@ -40,7 +40,7 @@ function detect(log) {
     // 🟢 SUCCESS LOGIN
     if (log.type === "success_login") {
         console.log(`🟢 ${log.username} | ${ip} | ${timestamp.toLocaleString()} | SUCCESS_LOGIN`);
-        detectorEvents.emit('alert', { type: 'success', username: log.username, ip, timestamp: timestamp.toLocaleString() });
+        detectorEvents.emit('alert', { type: 'success', username: log.username, ip, timestamp: timestamp.toLocaleString(), severity: 'low', message: `Successful login for user ${log.username}` });
         
         saveLog({
             timestamp: timestamp,
@@ -73,7 +73,7 @@ function detect(log) {
         const count = attempts[ip].length;
 
         console.log(`❌ ${log.username} | ${ip} | ${timestamp.toLocaleString()} | FAILED_LOGIN`);
-        detectorEvents.emit('alert', { type: 'failed', username: log.username, ip, timestamp: timestamp.toLocaleString() });
+        detectorEvents.emit('alert', { type: 'failed', username: log.username, ip, timestamp: timestamp.toLocaleString(), severity: 'medium', message: `Failed login for user ${log.username}` });
         
         saveLog({
             timestamp: timestamp,
@@ -90,7 +90,7 @@ function detect(log) {
             console.log(`🚨 ALERT: Possible Brute-force Attack from ${ip} | ${count} attempts in ${rules.TIME_WINDOW_SECONDS}s\n`);
 
             blockIp(ip);
-            detectorEvents.emit('alert', { type: 'attack', ip, count, timestamp: new Date().toLocaleString() });
+            detectorEvents.emit('alert', { type: 'attack', ip, count, timestamp: new Date().toLocaleString(), severity: 'critical', message: `Brute-force attack detected (${count} attempts in ${rules.TIME_WINDOW_SECONDS}s). IP blocked.`, detectionRule: 'Brute Force SSH' });
 
             saveLog({
                 timestamp: new Date(),

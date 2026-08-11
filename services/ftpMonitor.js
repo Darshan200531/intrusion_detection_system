@@ -1,116 +1,276 @@
 const fs = require('fs');
-const readline = require('readline');
-const { detectFTP } = require('../detectors/ftpDetector');
 const { spawn } = require('child_process');
+const { detectFTP } = require('../detectors/ftpDetector');
 
+
+/*
+ * Convert IPv6-mapped IPv4 addresses:
+ *
+ * ::ffff:127.0.0.1
+ *
+ * into:
+ *
+ * 127.0.0.1
+ */
+function normalizeIP(ip) {
+    if (ip && ip.startsWith('::ffff:')) {
+        return ip.substring(7);
+    }
+
+    return ip;
+}
+
+
+/*
+ * Parse vsftpd log entries
+ */
 function parseVsftpdLog(line) {
-    if (!line) return null;
-    
-    // Example vsftpd log:
-    // Mon Aug  7 10:10:10 2026 [pid 123] [user] OK LOGIN: Client "192.168.1.1"
-    // Mon Aug  7 10:11:11 2026 [pid 123] [user] FAIL LOGIN: Client "192.168.1.1"
-    // Mon Aug  7 10:12:12 2026 [pid 123] [anonymous] OK LOGIN: Client "192.168.1.1"
-    // Mon Aug  7 10:13:13 2026 [pid 123] [user] OK UPLOAD: Client "192.168.1.1", "/path/to/file.php", 1024 bytes
-    
-    let log = { raw: line, timestamp: new Date() };
-    
-    // FAIL LOGIN
-    const failMatch = line.match(/\[(.*?)\] FAIL LOGIN: Client "(.*?)"/);
-    if (failMatch) {
-        log.type = 'failed_login';
-        log.username = failMatch[1];
-        log.ip = failMatch[2];
-        return log;
+
+    if (!line || !line.trim()) {
+        return null;
     }
-    
-    // OK LOGIN
-    const okMatch = line.match(/\[(.*?)\] OK LOGIN: Client "(.*?)"/);
-    if (okMatch) {
-        if (okMatch[1] === 'anonymous' || okMatch[1] === 'ftp') {
-            log.type = 'anonymous_login';
+
+    const log = {
+        raw: line,
+        timestamp: new Date()
+    };
+
+
+    // ==========================================
+    // FTP LOGIN
+    // ==========================================
+
+    const loginMatch = line.match(
+        /\[(.*?)\]\s+(OK|FAIL) LOGIN:\s+Client\s+"(.*?)"/
+    );
+
+    if (loginMatch) {
+
+        const username = loginMatch[1];
+        const status = loginMatch[2];
+        const ip = normalizeIP(loginMatch[3]);
+
+        log.username = username;
+        log.ip = ip;
+
+        if (status === 'OK') {
+
+            if (
+                username.toLowerCase() === 'anonymous' ||
+                username.toLowerCase() === 'ftp'
+            ) {
+                log.type = 'anonymous_login';
+            } else {
+                log.type = 'success_login';
+            }
+
         } else {
-            log.type = 'success_login';
+
+            log.type = 'failed_login';
+
         }
-        log.username = okMatch[1];
-        log.ip = okMatch[2];
-        return log;
-    }
-    
-    // UPLOAD
-    const uploadMatch = line.match(/\[(.*?)\] OK UPLOAD: Client "(.*?)", "(.*?)", (\d+) bytes/);
-    if (uploadMatch) {
-        log.type = 'file_upload';
-        log.username = uploadMatch[1];
-        log.ip = uploadMatch[2];
-        log.filename = uploadMatch[3];
-        log.filesize = parseInt(uploadMatch[4], 10);
-        return log;
-    }
-    
-    // DOWNLOAD
-    const downloadMatch = line.match(/\[(.*?)\] OK DOWNLOAD: Client "(.*?)", "(.*?)", (\d+) bytes/);
-    if (downloadMatch) {
-        log.type = 'file_download';
-        log.username = downloadMatch[1];
-        log.ip = downloadMatch[2];
-        log.filename = downloadMatch[3];
-        log.filesize = parseInt(downloadMatch[4], 10);
+
         return log;
     }
 
-    // DELETE (vsftpd usually logs this via DELETE command)
-    const deleteMatch = line.match(/\[(.*?)\] OK DELETE: Client "(.*?)", "(.*?)"/);
-    if (deleteMatch) {
-        log.type = 'file_delete';
-        log.username = deleteMatch[1];
-        log.ip = deleteMatch[2];
-        log.filename = deleteMatch[3];
+
+    // ==========================================
+    // FTP UPLOAD
+    // ==========================================
+
+    const uploadMatch = line.match(
+        /\[(.*?)\]\s+(OK|FAIL) UPLOAD:\s+Client\s+"(.*?)",\s+"(.*?)",\s+([\d.]+)\s+bytes/
+    );
+
+    if (uploadMatch) {
+
+        log.username = uploadMatch[1];
+        log.ip = normalizeIP(uploadMatch[3]);
+        log.filename = uploadMatch[4];
+        log.filesize = parseFloat(uploadMatch[5]);
+
+        if (uploadMatch[2] === 'OK') {
+            log.type = 'file_upload';
+        } else {
+            log.type = 'failed_upload';
+        }
+
         return log;
     }
+
+
+    // ==========================================
+    // FTP DOWNLOAD
+    // ==========================================
+
+    const downloadMatch = line.match(
+        /\[(.*?)\]\s+(OK|FAIL) DOWNLOAD:\s+Client\s+"(.*?)",\s+"(.*?)",\s+([\d.]+)\s+Kbyte/
+    );
+
+    if (downloadMatch) {
+
+        log.username = downloadMatch[1];
+        log.ip = normalizeIP(downloadMatch[3]);
+        log.filename = downloadMatch[4];
+
+        if (downloadMatch[2] === 'OK') {
+            log.type = 'file_download';
+        } else {
+            log.type = 'failed_download';
+        }
+
+        return log;
+    }
+
+
+    // ==========================================
+    // FTP DELETE
+    // ==========================================
+
+    const deleteMatch = line.match(
+        /\[(.*?)\]\s+(OK|FAIL) DELETE:\s+Client\s+"(.*?)",\s+"(.*?)"/
+    );
+
+    if (deleteMatch) {
+
+        log.username = deleteMatch[1];
+        log.ip = normalizeIP(deleteMatch[3]);
+        log.filename = deleteMatch[4];
+
+        if (deleteMatch[2] === 'OK') {
+            log.type = 'file_delete';
+        } else {
+            log.type = 'failed_delete';
+        }
+
+        return log;
+    }
+
+
+    // ==========================================
+    // Unknown FTP event
+    // ==========================================
 
     return null;
 }
 
+
+/*
+ * Start FTP log monitoring
+ */
 function startFTPMonitor(logFilePath = '/var/log/vsftpd.log') {
+
     console.log(`📡 Starting FTP Log Monitor on: ${logFilePath}`);
-    
-    // In production, we'd use tail -F like logReader.js. For cross-compatibility we might want to check OS.
-    if (process.platform === 'win32') {
-        // Simple fallback for windows if testing locally (poll file changes)
-        if (fs.existsSync(logFilePath)) {
-            let fileSize = fs.statSync(logFilePath).size;
-            setInterval(() => {
-                const newSize = fs.statSync(logFilePath).size;
-                if (newSize > fileSize) {
-                    const stream = fs.createReadStream(logFilePath, { start: fileSize, end: newSize });
-                    const rl = readline.createInterface({ input: stream });
-                    rl.on('line', (line) => {
-                        if (line.trim()) {
-                            const parsed = parseVsftpdLog(line);
-                            if (parsed) detectFTP(parsed);
-                        }
-                    });
-                    fileSize = newSize;
-                }
-            }, 1000);
-        } else {
-            console.warn(`⚠️ FTP Log file ${logFilePath} not found.`);
-        }
-    } else {
-        const tail = spawn('sudo', ['tail', '-F', logFilePath]);
-        tail.stdout.on('data', (data) => {
-            const lines = data.toString().split("\n");
-            lines.forEach(line => {
-                if (line.trim()) {
-                    const parsed = parseVsftpdLog(line);
-                    if (parsed) detectFTP(parsed);
-                }
-            });
-        });
-        tail.stderr.on('data', (err) => {
-            console.error("FTP Tail Error:", err.toString());
-        });
+
+
+    // Check whether log exists
+
+    if (!fs.existsSync(logFilePath)) {
+
+        console.error(
+            `❌ FTP log file not found: ${logFilePath}`
+        );
+
+        return;
     }
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT use:
+     *
+     * sudo tail -F
+     *
+     * Node.js cannot reliably handle an interactive sudo password.
+     *
+     * Instead, Node.js directly runs tail.
+     */
+
+    const tail = spawn(
+        'tail',
+        ['-F', logFilePath]
+    );
+
+
+    /*
+     * Receive new log data
+     */
+
+    tail.stdout.on('data', (data) => {
+
+        const lines = data
+            .toString()
+            .split('\n');
+
+
+        lines.forEach((line) => {
+
+            if (!line.trim()) {
+                return;
+            }
+
+
+            const parsed = parseVsftpdLog(line);
+
+
+            if (parsed) {
+
+                console.log(
+                    '📡 FTP EVENT DETECTED:',
+                    parsed
+                );
+
+
+                /*
+                 * Send event to detection engine
+                 */
+
+                detectFTP(parsed);
+
+            }
+
+        });
+
+    });
+
+
+    /*
+     * Handle errors
+     */
+
+    tail.stderr.on('data', (data) => {
+
+        console.error(
+            '❌ FTP Tail Error:',
+            data.toString()
+        );
+
+    });
+
+
+    tail.on('error', (error) => {
+
+        console.error(
+            '❌ FTP Monitor Error:',
+            error
+        );
+
+    });
+
+
+    tail.on('close', (code) => {
+
+        console.log(
+            `FTP monitor stopped with code ${code}`
+        );
+
+    });
+
 }
 
-module.exports = { startFTPMonitor, parseVsftpdLog };
+
+module.exports = {
+    startFTPMonitor,
+    parseVsftpdLog
+};

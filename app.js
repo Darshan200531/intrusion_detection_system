@@ -10,6 +10,7 @@ const readLogs = require('./services/logReader');
 const parseLog = require('./services/parser');
 const { detect, detectorEvents } = require('./services/detector');
 const { unblockIp, getBlockedIps } = require('./services/blocker');
+const SSHLog = require('./models/SSHLog');
 
 // FTP modules
 const { startFTPMonitor } = require('./services/ftpMonitor');
@@ -34,18 +35,47 @@ const PORT = process.env.PORT || 3000;
 connectDB();
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// SSH routes
+const sshRoutes = require('./routes/sshRoutes');
 
-// Routes for new services
+// Routes for services
+app.use('/api/ssh', sshRoutes);
 app.use('/api/ftp', ftpRoutes);
 app.use('/api/smtp', smtpRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 let alertHistory = []; // Keep last 100 SSH alerts in memory
 
-// ─── History API ─────────────────────────────────────────────────────────────
+// ─── History API (in-memory, SSH only) ────────────────────────────────────────────
 app.get('/api/alerts/history', (req, res) => {
     res.json(alertHistory);
+});
+
+// ─── SSH History from MongoDB ─────────────────────────────────────────────────
+app.get('/api/ssh/history', async (req, res) => {
+    try {
+        const logs = await SSHLog.find()
+            .sort({ timestamp: -1 })
+            .limit(100)
+            .lean();
+
+        // Map DB fields to the shape handleNewSSHAlert expects
+        const mapped = logs.map(log => ({
+            type:      log.eventType,   // 'failed_login', 'success_login', 'attack', 'blocked_attempt'
+            ip:        log.sourceIp,
+            username:  log.username,
+            timestamp: log.timestamp,
+            severity:  log.severity,
+            message:   log.message,
+            count:     undefined,
+            service:   'SSH'
+        }));
+
+        res.json(mapped);
+    } catch (err) {
+        console.error('SSH history fetch error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── IPTable / Blocked IPs API ────────────────────────────────────────────────

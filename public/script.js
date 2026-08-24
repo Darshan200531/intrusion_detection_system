@@ -112,16 +112,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ─── Socket.IO listeners ──────────────────────────────────────────────────
-    socket.on('ssh_history', history => {
-        history.forEach(data => {
-            // Update overview analytics card counts from history
-            if (typeof updateAnalyticsOnAlert === 'function') updateAnalyticsOnAlert('SSH');
-            handleNewSSHAlert(data);
-        });
-        // After replaying history, update empty state visibility
-        applySSHFilter();
-    });
 
+    // ─── SSH Stats & History ────────────────────────────────────────────────
+    async function loadSSHStats() {
+        try {
+            const res = await fetch('/api/ssh/stats');
+            if (!res.ok) return;
+            const data = await res.json();
+            countSuccess = data.successCount || 0;
+            countFailed  = data.failedCount  || 0;
+            countAttacks = data.attackCount  || 0;
+            if (successEl) successEl.textContent = countSuccess;
+            if (failedEl)  failedEl.textContent  = countFailed;
+            if (attacksEl) attacksEl.textContent = countAttacks;
+        } catch (err) {
+            console.error('SSH stats load error:', err);
+        }
+    }
+
+    async function loadSSHHistory() {
+        try {
+            const res = await fetch('/api/ssh/history');
+            if (!res.ok) return;
+            const history = await res.json();
+            if (alertsContainer) alertsContainer.innerHTML = '';
+            // Render oldest first so prepending leaves newest at top
+            [...history].reverse().forEach(data => handleNewSSHAlert(data, false));
+            applySSHFilter();
+        } catch (err) {
+            console.error('SSH history load error:', err);
+        }
+    }
+
+    loadSSHStats();
+    loadSSHHistory();
+
+    // ─── Socket.IO listeners ──────────────────────────────────────────────────
     socket.on('alert', data => {
         const svc = data.service;
 
@@ -142,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        if (svc === 'SSH')  handleNewSSHAlert(data);
+        if (svc === 'SSH')  handleNewSSHAlert(data, true);
         if (svc === 'FTP'  && window.handleNewFTPAlert)  window.handleNewFTPAlert(data);
         if (svc === 'SMTP' && window.handleNewSMTPAlert) window.handleNewSMTPAlert(data);
     });
@@ -155,37 +181,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ─── SSH alert renderer ─────────────────────────────────────────────────────
-    function handleNewSSHAlert(data) {
-        // Count by type
-        if (data.type === 'success') { countSuccess++; if (successEl) successEl.textContent = countSuccess; }
-        else if (data.type === 'failed')  { countFailed++;  if (failedEl)  failedEl.textContent  = countFailed; }
-        // Both 'attack' (brute force blocked) and 'blocked_attempt' (blocked IP retrying) count as threats
-        else if (data.type === 'attack' || data.type === 'blocked_attempt') {
-            countAttacks++;
-            if (attacksEl) attacksEl.textContent = countAttacks;
+    function handleNewSSHAlert(data, incrementStats = true) {
+        // Normalise type: DB stores 'failed_login'/'success_login',
+        // live events use 'failed'/'success'. Map to the short form.
+        const typeMap = {
+            'failed_login':    'failed',
+            'success_login':   'success',
+            'attack':          'attack',
+            'blocked_attempt': 'blocked_attempt'
+        };
+        const type = typeMap[data.type] || data.type;
+
+        // Count by normalised type (only for live events, not initial history load)
+        if (incrementStats) {
+            if (type === 'success') { countSuccess++; if (successEl) successEl.textContent = countSuccess; }
+            else if (type === 'failed')  { countFailed++;  if (failedEl)  failedEl.textContent  = countFailed; }
+            else if (type === 'attack' || type === 'blocked_attempt') {
+                countAttacks++;
+                if (attacksEl) attacksEl.textContent = countAttacks;
+            }
         }
 
         let icon = 'ℹ️', title = 'Activity';
-        let details = `IP: <span class="alert-ip">${data.ip}</span>`;
+        let details = `IP: <span class="alert-ip">${data.ip || '—'}</span>`;
 
-        if (data.type === 'success') {
+        if (type === 'success') {
             icon = '✅'; title = 'Successful Login';
-            details += ` | User: ${data.username}`;
-        } else if (data.type === 'failed') {
+            details += data.username ? ` | User: ${data.username}` : '';
+        } else if (type === 'failed') {
             icon = '⚠️'; title = 'Failed Login';
-            details += ` | User: ${data.username}`;
-        } else if (data.type === 'attack') {
+            details += data.username ? ` | User: ${data.username}` : '';
+        } else if (type === 'attack') {
             icon = '🚨'; title = 'BRUTE FORCE BLOCKED';
-            details += ` | Attempts: ${data.count} | IP Blocked`;
+            details += data.count ? ` | Attempts: ${data.count} | IP Blocked` : ' | IP Blocked';
             document.body.style.animation = 'shake 0.5s';
             setTimeout(() => { document.body.style.animation = ''; }, 500);
-        } else if (data.type === 'blocked_attempt') {
+        } else if (type === 'blocked_attempt') {
             icon = '🚫'; title = 'Blocked IP Denied';
-            details += ` | User: ${data.username}`;
+            details += data.username ? ` | User: ${data.username}` : '';
         }
 
         const el = document.createElement('div');
-        el.className = `alert-item ${data.type}`;
+        el.className = `alert-item ${type}`;
 
         // Safely format timestamp (may be a Date object, ISO string, or localised string)
         let displayTime = data.timestamp;
@@ -201,11 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="alert-time">${displayTime}</div>
         `;
 
-        // Apply current filter
+        // Apply current filter using the normalised type
         let show = true;
-        if (currentFilter === 'success' && data.type !== 'success') show = false;
-        if (currentFilter === 'failed'  && data.type !== 'failed')  show = false;
-        if (currentFilter === 'attacks' && data.type !== 'attack' && data.type !== 'blocked_attempt') show = false;
+        if (currentFilter === 'success' && type !== 'success') show = false;
+        if (currentFilter === 'failed'  && type !== 'failed')  show = false;
+        if (currentFilter === 'attacks' && type !== 'attack' && type !== 'blocked_attempt') show = false;
         if (!show) el.classList.add('hidden');
 
         // Hide empty state immediately on first item

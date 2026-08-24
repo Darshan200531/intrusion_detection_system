@@ -182,15 +182,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── SSH alert renderer ─────────────────────────────────────────────────────
     function handleNewSSHAlert(data, incrementStats = true) {
+        const rawType  = data.type || data.eventType || 'unknown';
+        const ip       = data.ip   || data.sourceIp  || '—';
+        const username = data.username || '';
+        const message  = data.message  || '';
+
         // Normalise type: DB stores 'failed_login'/'success_login',
         // live events use 'failed'/'success'. Map to the short form.
         const typeMap = {
             'failed_login':    'failed',
             'success_login':   'success',
+            'failed':          'failed',
+            'success':         'success',
             'attack':          'attack',
             'blocked_attempt': 'blocked_attempt'
         };
-        const type = typeMap[data.type] || data.type;
+        const type = typeMap[rawType] || rawType;
 
         // Count by normalised type (only for live events, not initial history load)
         if (incrementStats) {
@@ -202,15 +209,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        let icon = 'ℹ️', title = 'Activity';
-        let details = `IP: <span class="alert-ip">${data.ip || '—'}</span>`;
+        let icon = 'ℹ️', title = 'SSH Activity';
+        let details = `IP: <span class="alert-ip">${ip}</span>`;
 
         if (type === 'success') {
             icon = '✅'; title = 'Successful Login';
-            details += data.username ? ` | User: ${data.username}` : '';
+            details += username ? ` | User: ${username}` : '';
         } else if (type === 'failed') {
             icon = '⚠️'; title = 'Failed Login';
-            details += data.username ? ` | User: ${data.username}` : '';
+            details += username ? ` | User: ${username}` : '';
         } else if (type === 'attack') {
             icon = '🚨'; title = 'BRUTE FORCE BLOCKED';
             details += data.count ? ` | Attempts: ${data.count} | IP Blocked` : ' | IP Blocked';
@@ -218,7 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { document.body.style.animation = ''; }, 500);
         } else if (type === 'blocked_attempt') {
             icon = '🚫'; title = 'Blocked IP Denied';
-            details += data.username ? ` | User: ${data.username}` : '';
+            details += username ? ` | User: ${username}` : '';
+        }
+
+        if (message) {
+            details += `<br><small style="color:#94a3b8;font-size:0.78rem;">${message}</small>`;
         }
 
         const el = document.createElement('div');

@@ -2,21 +2,39 @@ const express = require('express');
 const router = express.Router();
 const SSHLog = require('../models/SSHLog');
 
+// Helper to normalize SSH log schema for frontend consumption
+function normalizeSSHLog(log) {
+    return {
+        _id:           log._id,
+        service:       'SSH',
+        type:          log.eventType,
+        eventType:     log.eventType,
+        ip:            log.sourceIp,
+        sourceIp:      log.sourceIp,
+        username:      log.username || '',
+        timestamp:     log.timestamp,
+        severity:      log.severity || 'low',
+        message:       log.message || '',
+        detectionRule: log.detectionRule || null,
+        status:        log.status || 'logged'
+    };
+}
+
 // Get all SSH activity logs (latest 100)
 router.get('/alerts', async (req, res) => {
     try {
         const logs = await SSHLog.find({}).sort({ timestamp: -1 }).limit(100).lean();
-        res.json(logs);
+        res.json(logs.map(normalizeSSHLog));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Alias for backwards compatibility
+// Alias for history
 router.get('/history', async (req, res) => {
     try {
         const logs = await SSHLog.find({}).sort({ timestamp: -1 }).limit(100).lean();
-        res.json(logs);
+        res.json(logs.map(normalizeSSHLog));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

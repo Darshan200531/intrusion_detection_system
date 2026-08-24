@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (show) visible++;
         });
 
+        // empty-state is now a sibling of alerts-container, not inside it
         if (!emptyState) return;
         if (items.length === 0) {
             emptyState.style.display = 'block';
@@ -112,7 +113,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── Socket.IO listeners ──────────────────────────────────────────────────
     socket.on('ssh_history', history => {
-        history.forEach(data => handleNewSSHAlert(data));
+        history.forEach(data => {
+            // Update overview analytics card counts from history
+            if (typeof updateAnalyticsOnAlert === 'function') updateAnalyticsOnAlert('SSH');
+            handleNewSSHAlert(data);
+        });
+        // After replaying history, update empty state visibility
+        applySSHFilter();
     });
 
     socket.on('alert', data => {
@@ -201,10 +208,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentFilter === 'attacks' && data.type !== 'attack' && data.type !== 'blocked_attempt') show = false;
         if (!show) el.classList.add('hidden');
 
+        // Hide empty state immediately on first item
+        if (emptyState) emptyState.style.display = 'none';
+
         if (alertsContainer) {
             alertsContainer.prepend(el);
-            // Cap at 50
-            if (alertsContainer.children.length > 51) alertsContainer.removeChild(alertsContainer.lastChild);
+            // Cap at 50 alert items (use querySelectorAll to exclude non-item children)
+            const allItems = alertsContainer.querySelectorAll('.alert-item');
+            if (allItems.length > 50) allItems[allItems.length - 1].remove();
         }
 
         applySSHFilter();

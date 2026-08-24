@@ -17,32 +17,35 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(err => console.error('Error fetching FTP stats', err));
 
-    // Fetch initial history
+    // Fetch initial history from MongoDB
     fetch('/api/ftp/alerts')
         .then(res => res.json())
         .then(data => {
-            // Data is sorted descending, so we need to reverse if we append or just append correctly
             data.reverse().forEach(alert => {
-                // mock the required fields for handleNewFTPAlert
                 handleNewFTPAlert({
                     type: alert.eventType,
+                    eventType: alert.eventType,
                     ip: alert.sourceIp,
+                    sourceIp: alert.sourceIp,
                     username: alert.username,
+                    filename: alert.filename,
+                    action: alert.action,
+                    reason: alert.reason,
                     message: alert.message,
                     severity: alert.severity,
+                    detectionRule: alert.detectionRule,
                     timestamp: new Date(alert.timestamp).toLocaleString()
                 }, false);
             });
         })
         .catch(err => console.error('Error fetching FTP alerts', err));
 
-
     function updateFTPStats() {
-        if(ftpTotalEl) ftpTotalEl.textContent = countTotal;
-        if(ftpRecentEl) ftpRecentEl.textContent = countRecent;
+        if (ftpTotalEl) ftpTotalEl.textContent = countTotal;
+        if (ftpRecentEl) ftpRecentEl.textContent = countRecent;
     }
 
-    // Expose handler globally so script.js can call it via socket.io
+    // Expose handler globally so script.js / Socket.IO can call it
     window.handleNewFTPAlert = function(data, incrementStats = true) {
         if (incrementStats) {
             countTotal++;
@@ -51,15 +54,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const eventType = data.type || data.eventType || 'unknown';
+        const ip = data.ip || data.sourceIp || '—';
+        const filename = data.filename ? ` | File: <code>${data.filename}</code>` : '';
+        const action = data.action ? ` | Action: <strong>${data.action}</strong>` : '';
+        const reason = data.reason ? `<br><small style="color:#fca5a5;font-weight:600;">Reason: ${data.reason}</small>` : '';
+        const message = data.message ? `<br><small style="color:#94a3b8;">${data.message}</small>` : '';
+
         let icon = 'ℹ️';
         if (data.severity === 'critical') icon = '🚨';
         else if (data.severity === 'high') icon = '⚠️';
         else if (data.severity === 'medium') icon = '👀';
 
-        let title = eventType.replace(/_/g, ' ').toUpperCase();
-        let details = `IP: <span class="alert-ip">${data.ip || '—'}</span>`;
+        let title = data.detectionRule || eventType.replace(/_/g, ' ').toUpperCase();
+        let details = `IP: <span class="alert-ip">${ip}</span>`;
         if (data.username) details += ` | User: ${data.username}`;
-        if (data.message) details += `<br><small>${data.message}</small>`;
+        details += action + filename + reason + message;
 
         const alertEl = document.createElement('div');
         alertEl.className = `alert-item ftp-alert ${data.severity || 'low'}`;
@@ -71,15 +80,16 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="alert-time">${data.timestamp || ''}</div>
         `;
 
-        // Hide empty state and move it out before prepending
         if (ftpEmptyState) ftpEmptyState.style.display = 'none';
 
-        ftpAlertsContainer.prepend(alertEl);
+        if (ftpAlertsContainer) {
+            ftpAlertsContainer.prepend(alertEl);
 
-        // Cap at 50 alert items (exclude the empty-state element)
-        const alertItems = ftpAlertsContainer.querySelectorAll('.alert-item');
-        if (alertItems.length > 50) {
-            alertItems[alertItems.length - 1].remove();
+            // Cap at 50 alert items
+            const alertItems = ftpAlertsContainer.querySelectorAll('.alert-item');
+            if (alertItems.length > 50) {
+                alertItems[alertItems.length - 1].remove();
+            }
         }
     };
 });

@@ -5,12 +5,13 @@ module.exports = {
 
     // FTP Rules
     FTP_FAILED_LOGIN_THRESHOLD: 5,
+    FTP_SUSPICIOUS_THRESHOLD: 3, // Repeated suspicious uploads before iptables IP block
     FTP_TIME_WINDOW_SECONDS: 60,
     FTP_MAX_UPLOAD_MB: 50,
 
     // SMTP Rules
     SMTP_AUTH_FAILURE_THRESHOLD: 10,
     SMTP_TIME_WINDOW_SECONDS: 300,
-    SMTP_MAX_EMAILS_PER_MIN: 10, // 100 in 10 mins = 10 per min
+    SMTP_MAX_EMAILS_PER_MIN: 10,
     SMTP_MAX_ATTACHMENT_MB: 25
 };

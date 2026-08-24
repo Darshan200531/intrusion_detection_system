@@ -9,6 +9,7 @@ const connectDB = require('./config/db');
 const readLogs = require('./services/logReader');
 const parseLog = require('./services/parser');
 const { detect, detectorEvents } = require('./services/detector');
+const { unblockIp, getBlockedIps } = require('./services/blocker');
 
 // FTP modules
 const { startFTPMonitor } = require('./services/ftpMonitor');
@@ -47,6 +48,23 @@ app.get('/api/alerts/history', (req, res) => {
     res.json(alertHistory);
 });
 
+// ─── IPTable / Blocked IPs API ────────────────────────────────────────────────
+app.get('/api/blocked-ips', (req, res) => {
+    res.json(getBlockedIps());
+});
+
+app.delete('/api/blocked-ips/:ip', (req, res) => {
+    const ip = req.params.ip;
+    const success = unblockIp(ip);
+    if (success) {
+        // Broadcast updated list to all connected clients
+        io.emit('blocked_ips_update', getBlockedIps());
+        res.json({ ok: true, message: `IP ${ip} unblocked successfully` });
+    } else {
+        res.status(404).json({ ok: false, message: `IP ${ip} not found in block list` });
+    }
+});
+
 // ─── Simulate API (for testing) ──────────────────────────────────────────────
 app.post('/api/simulate', (req, res) => {
     const { type } = req.body;
@@ -69,6 +87,8 @@ io.on('connection', (socket) => {
     console.log('✅ Client connected to Socket.IO');
     // Send history of SSH alerts to new clients to maintain previous functionality
     socket.emit('ssh_history', alertHistory);
+    // Send current blocked IPs list on connect
+    socket.emit('blocked_ips_update', getBlockedIps());
 });
 
 // Broadcast SSH Alerts
@@ -80,6 +100,11 @@ detectorEvents.on('alert', (data) => {
     if (alertHistory.length > 100) alertHistory.shift();
 
     io.emit('alert', data);
+
+    // If an IP was just blocked, broadcast the updated blocked IP list
+    if (data.type === 'attack') {
+        io.emit('blocked_ips_update', getBlockedIps());
+    }
 });
 
 // Broadcast FTP Alerts

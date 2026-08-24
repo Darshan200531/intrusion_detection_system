@@ -18,6 +18,7 @@
             <nav class="sidebar-nav">
                 <button class="nav-btn active" data-target="dashboard-view">📊 Overview</button>
                 <button class="nav-btn" data-target="ssh-view">🔑 SSH Activity</button>
+                <button class="nav-btn" data-target="iptable-view">🔒 IPTable / Blocked</button>
                 <button class="nav-btn" data-target="ftp-view">📁 FTP Activity</button>
                 <button class="nav-btn" data-target="smtp-view">✉️ SMTP Activity</button>
                 <button class="nav-btn" data-target="history-view">📜 History Logs</button>
@@ -121,6 +122,30 @@
                     </section>
                 </div>
 
+                <!-- IPTable / Blocked IPs View -->
+                <div id="iptable-view" class="view-section" style="display: none;">
+                    <div class="iptable-header">
+                        <div class="iptable-header-left">
+                            <h2 class="iptable-title">🔒 IPTable — Blocked IPs</h2>
+                            <p class="iptable-subtitle">IPs blocked by iptables due to detected brute-force attacks via SSH</p>
+                        </div>
+                        <div class="iptable-header-right">
+                            <span class="iptable-count-badge" id="iptable-count">0 blocked</span>
+                            <button class="btn-refresh" id="iptable-refresh" title="Refresh list">↻ Refresh</button>
+                        </div>
+                    </div>
+
+                    <div class="iptable-empty" id="iptable-empty">
+                        <div class="iptable-empty-icon">✅</div>
+                        <p>No IPs are currently blocked</p>
+                        <small>Blocked IPs will appear here when brute-force attacks are detected</small>
+                    </div>
+
+                    <div class="iptable-grid" id="iptable-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
                 <!-- History View -->
                 <div id="history-view" class="view-section" style="display: none;">
                     <div class="history-controls">
@@ -166,6 +191,7 @@
     <script src="js/history.js"></script>
     <script src="js/ftpAlerts.js"></script>
     <script src="js/smtpAlerts.js"></script>
+    <script src="js/iptable.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

@@ -15,6 +15,7 @@ const socket = io();
 const PAGE_TITLES = {
     'dashboard-view': 'Analytics Overview',
     'ssh-view':       'SSH Activity',
+    'iptable-view':   'IPTable — Blocked IPs',
     'ftp-view':       'FTP Activity',
     'smtp-view':      'SMTP Activity',
     'history-view':   'History Logs'
@@ -139,11 +140,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (svc === 'SMTP' && window.handleNewSMTPAlert) window.handleNewSMTPAlert(data);
     });
 
-    // ─── SSH alert renderer ───────────────────────────────────────────────────
+    // Real-time blocked IPs list update
+    socket.on('blocked_ips_update', (ips) => {
+        if (typeof window.handleBlockedIpsUpdate === 'function') {
+            window.handleBlockedIpsUpdate(ips);
+        }
+    });
+
+    // ─── SSH alert renderer ─────────────────────────────────────────────────────
     function handleNewSSHAlert(data) {
+        // Count by type
         if (data.type === 'success') { countSuccess++; if (successEl) successEl.textContent = countSuccess; }
-        else if (data.type === 'failed') { countFailed++;  if (failedEl)  failedEl.textContent  = countFailed; }
-        else if (data.type === 'attack') { countAttacks++; if (attacksEl) attacksEl.textContent = countAttacks; }
+        else if (data.type === 'failed')  { countFailed++;  if (failedEl)  failedEl.textContent  = countFailed; }
+        // Both 'attack' (brute force blocked) and 'blocked_attempt' (blocked IP retrying) count as threats
+        else if (data.type === 'attack' || data.type === 'blocked_attempt') {
+            countAttacks++;
+            if (attacksEl) attacksEl.textContent = countAttacks;
+        }
 
         let icon = 'ℹ️', title = 'Activity';
         let details = `IP: <span class="alert-ip">${data.ip}</span>`;
@@ -166,12 +179,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const el = document.createElement('div');
         el.className = `alert-item ${data.type}`;
+
+        // Safely format timestamp (may be a Date object, ISO string, or localised string)
+        let displayTime = data.timestamp;
+        if (data.timestamp && !isNaN(Date.parse(data.timestamp))) {
+            displayTime = new Date(data.timestamp).toLocaleString();
+        }
+
         el.innerHTML = `
             <div class="alert-content">
                 <div class="alert-title">${icon} ${title}</div>
                 <div class="alert-details">${details}</div>
             </div>
-            <div class="alert-time">${data.timestamp}</div>
+            <div class="alert-time">${displayTime}</div>
         `;
 
         // Apply current filter

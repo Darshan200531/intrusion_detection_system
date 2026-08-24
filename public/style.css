@@ -490,3 +490,273 @@ body {
     color: var(--text-muted);
     font-style: italic;
 }
+
+/* ─── IPTable Section ─────────────────────────────────────────────────────────── */
+.iptable-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.iptable-header-left {}
+
+.iptable-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0 0 0.3rem;
+}
+
+.iptable-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.iptable-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.iptable-count-badge {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.3rem 0.85rem;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+    transition: all 0.3s ease;
+}
+
+.iptable-count-badge.has-blocked {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.45);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+    animation: pulseBadge 2s infinite;
+}
+
+@keyframes pulseBadge {
+    0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
+    50%       { box-shadow: 0 0 18px rgba(239, 68, 68, 0.4); }
+}
+
+.btn-refresh {
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    color: #93c5fd;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.35rem 0.9rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s ease;
+}
+
+.btn-refresh:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: rotate(15deg) scale(1.05);
+}
+
+/* Empty state */
+.iptable-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    gap: 0.5rem;
+    animation: fadeIn 0.35s ease-out;
+}
+
+.iptable-empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.iptable-empty p {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-color);
+    margin: 0;
+}
+
+.iptable-empty small {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* IP Cards Grid */
+.iptable-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.ip-card {
+    background: linear-gradient(145deg, rgba(20, 32, 56, 0.9), rgba(127, 29, 29, 0.2));
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 1rem;
+    padding: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), 0 0 0 0 rgba(239, 68, 68, 0);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    animation: ipCardIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    position: relative;
+    overflow: hidden;
+}
+
+.ip-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.6), transparent);
+}
+
+.ip-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35), 0 0 20px rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.45);
+}
+
+@keyframes ipCardIn {
+    from { opacity: 0; transform: scale(0.92) translateY(12px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes ipCardOut {
+    from { opacity: 1; transform: scale(1); max-height: 300px; }
+    to   { opacity: 0; transform: scale(0.85); max-height: 0; padding: 0; margin: 0; }
+}
+
+.ip-card-removing {
+    pointer-events: none;
+}
+
+.ip-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ip-card-icon { font-size: 1rem; }
+
+.ip-card-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex: 1;
+}
+
+.ip-card-status {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+}
+
+.ip-address {
+    font-family: 'Courier New', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f87171;
+    letter-spacing: 0.04em;
+    word-break: break-all;
+}
+
+.ip-card-rule {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.4rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.ip-rule-tag {
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+.btn-unblock {
+    margin-top: 0.25rem;
+    width: 100%;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08));
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #6ee7b7;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.65rem 1rem;
+    border-radius: 0.6rem;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+}
+
+.btn-unblock:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.15));
+    border-color: rgba(16, 185, 129, 0.55);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
+    transform: translateY(-1px);
+}
+
+.btn-unblock:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ─── Toast Notification ─────────────────────────────────────────────────────── */
+.ids-toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    padding: 0.85rem 1.4rem;
+    border-radius: 0.75rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    max-width: 360px;
+}
+
+.ids-toast-show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.ids-toast-success {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+}
+
+.ids-toast-error {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+

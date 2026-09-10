@@ -20,7 +20,7 @@ const detectFTP = async (log) => {
     let shouldAlert = false;
     const currentAction = action || (type.includes('upload') ? 'UPLOAD' : type.includes('download') ? 'DOWNLOAD' : type.includes('login') ? 'LOGIN' : 'OTHER');
 
-    // 1. Detect Anonymous Login
+   // // 1. Detect Anonymous Login
     if (type === 'anonymous_login') {
         severity = 'medium';
         reason = 'Anonymous FTP login detected';

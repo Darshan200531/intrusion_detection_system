@@ -21,6 +21,7 @@
                 <button class="nav-btn" data-target="iptable-view">🔒 IPTable / Blocked</button>
                 <button class="nav-btn" data-target="ftp-view">📁 FTP Activity</button>
                 <button class="nav-btn" data-target="smtp-view">✉️ SMTP Activity</button>
+                <button class="nav-btn" data-target="fim-view">📄 File Integrity (FIM)</button>
                 <button class="nav-btn" data-target="history-view">📜 History Logs</button>
             </nav>
             <div class="sidebar-footer">
@@ -146,6 +147,69 @@
                     </div>
                 </div>
 
+                <!-- File Integrity Monitoring (FIM) View -->
+                <div id="fim-view" class="view-section" style="display: none;">
+                    <div class="iptable-header">
+                        <div class="iptable-header-left">
+                            <h2 class="iptable-title">📄 File Integrity Monitoring (FIM)</h2>
+                            <p class="iptable-subtitle">SHA-256 cryptographic baseline verification & real-time file modification detection</p>
+                        </div>
+                        <div class="iptable-header-right">
+                            <button class="btn-refresh" id="fim-rebuild-all" title="Rebuild trusted baselines for all files">🔄 Rebuild Baselines</button>
+                            <button class="btn-refresh" id="fim-refresh" title="Refresh FIM status">↻ Refresh</button>
+                        </div>
+                    </div>
+
+                    <section class="stats-cards">
+                        <div class="card">
+                            <h3>Monitored Files</h3>
+                            <p class="value" id="count-fim-monitored">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Unchanged</h3>
+                            <p class="value" id="count-fim-unchanged" style="color: #4ade80;">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Modified</h3>
+                            <p class="value" id="count-fim-modified" style="color: #fbbf24;">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Deleted</h3>
+                            <p class="value" id="count-fim-deleted" style="color: #f87171;">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Critical Alerts</h3>
+                            <p class="value" id="count-fim-critical" style="color: #ef4444;">0</p>
+                        </div>
+                    </section>
+
+                    <div class="table-container" style="margin-top: 1.5rem;">
+                        <h3 style="margin-bottom: 0.75rem; color: #f1f5f9;">Monitored File Integrity Status</h3>
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Monitored File Path</th>
+                                    <th>Integrity Status</th>
+                                    <th>SHA-256 Checksum (Current)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fim-status-table-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <section class="alerts-section" style="margin-top: 1.5rem;">
+                        <h2>FIM Real-Time Alert Feed</h2>
+                        <div class="alerts-container" id="fim-alerts-container">
+                            <div class="empty-state" id="fim-empty-state">
+                                <p>No file integrity violations detected yet...</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
                 <!-- History View -->
                 <div id="history-view" class="view-section" style="display: none;">
                     <div class="history-controls">
@@ -155,6 +219,7 @@
                             <option value="SSH">SSH</option>
                             <option value="FTP">FTP</option>
                             <option value="SMTP">SMTP</option>
+                            <option value="FIM">FIM</option>
                         </select>
                         <select id="history-severity-filter">
                             <option value="ALL">All Severities</option>
@@ -171,7 +236,7 @@
                                     <th>Timestamp</th>
                                     <th>Service</th>
                                     <th>Severity</th>
-                                    <th>IP / User</th>
+                                    <th>IP / User / File</th>
                                     <th>Event</th>
                                     <th>Details</th>
                                 </tr>
@@ -192,6 +257,7 @@
     <script src="js/ftpAlerts.js"></script>
     <script src="js/smtpAlerts.js"></script>
     <script src="js/iptable.js"></script>
+    <script src="js/fimAlerts.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

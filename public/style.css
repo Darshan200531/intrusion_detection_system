@@ -760,3 +760,72 @@ body {
     color: #fca5a5;
 }
 
+/* ─── FIM Custom Styles ─────────────────────────────────────────────────────── */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.badge.status-ok {
+    background: rgba(16, 185, 129, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge.status-warn {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge.status-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.hash-code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 0.2rem 0.45rem;
+    border-radius: 0.35rem;
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.btn-rebuild-single {
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+    padding: 0.3rem 0.7rem;
+    border-radius: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-rebuild-single:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #93c5fd;
+}
+
+.alert-item.fim-alert {
+    border-left: 4px solid var(--warning-color);
+}
+
+.alert-item.fim-alert.critical {
+    border-left: 4px solid var(--danger-color);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+

@@ -18,6 +18,7 @@ const PAGE_TITLES = {
     'iptable-view':   'IPTable — Blocked IPs',
     'ftp-view':       'FTP Activity',
     'smtp-view':      'SMTP Activity',
+    'fim-view':       'File Integrity Monitoring (FIM)',
     'history-view':   'History Logs'
 };
 
@@ -171,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (svc === 'SSH')  handleNewSSHAlert(data, true);
         if (svc === 'FTP'  && window.handleNewFTPAlert)  window.handleNewFTPAlert(data);
         if (svc === 'SMTP' && window.handleNewSMTPAlert) window.handleNewSMTPAlert(data);
+        if (svc === 'FIM'  && window.handleNewFIMAlert)  window.handleNewFIMAlert(data);
     });
 
     // Real-time blocked IPs list update

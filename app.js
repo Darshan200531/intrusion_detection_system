@@ -44,10 +44,15 @@ app.get('/', (req, res) => {
 // SSH routes
 const sshRoutes = require('./routes/sshRoutes');
 
+// FIM modules
+const { initializeFIM, fimEvents } = require('./services/fileIntegrityMonitor');
+const fimRoutes = require('./routes/fimRoutes');
+
 // Routes for services
 app.use('/api/ssh', sshRoutes);
 app.use('/api/ftp', ftpRoutes);
 app.use('/api/smtp', smtpRoutes);
+app.use('/api/fim', fimRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 let alertHistory = []; // Keep last 100 SSH alerts in memory
@@ -114,6 +119,9 @@ blockerEvents.on('change', async () => {
     }
 });
 
+const { detectSMTP } = require('./detectors/smtpDetector');
+const { detectFTP } = require('./detectors/ftpDetector');
+
 // ─── Simulate API (for testing) ──────────────────────────────────────────────
 app.post('/api/simulate', (req, res) => {
     const { type } = req.body;
@@ -126,9 +134,25 @@ app.post('/api/simulate', (req, res) => {
         for (let i = 0; i < 5; i++) {
             detect({ type: 'failed_login', username: 'hacker', ip: '6.6.6.6', timestamp: new Date() });
         }
+    } else if (type === 'smtp_auth_failed' || type === 'smtp_failed') {
+        detectSMTP({ type: 'auth_failure', ip: '192.168.1.50', username: 'mailhacker', raw: 'warning: unknown[192.168.1.50]: SASL LOGIN authentication failed' });
+    } else if (type === 'smtp_auth_success' || type === 'smtp_success') {
+        detectSMTP({ type: 'auth_success', ip: '192.168.1.50', username: 'smtpuser', raw: 'postfix/smtpd: client=unknown[192.168.1.50], sasl_username=smtpuser' });
+    } else if (type === 'smtp_open_relay') {
+        detectSMTP({ type: 'open_relay', ip: '192.168.1.88', raw: 'NOQUEUE: reject: RCPT from unknown[192.168.1.88]: Relay access denied' });
+    } else if (type === 'smtp_attack') {
+        for (let i = 0; i < 10; i++) {
+            detectSMTP({ type: 'auth_failure', ip: '172.16.0.99', username: 'spammer', raw: 'warning: unknown[172.16.0.99]: SASL LOGIN authentication failed' });
+        }
+    } else if (type === 'ftp_failed') {
+        detectFTP({ type: 'failed_login', ip: '192.168.1.40', username: 'ftphacker', raw: '[ftphacker] FAIL LOGIN: Client "192.168.1.40"' });
+    } else if (type === 'ftp_attack') {
+        for (let i = 0; i < 5; i++) {
+            detectFTP({ type: 'failed_login', ip: '192.168.1.44', username: 'ftphacker', raw: '[ftphacker] FAIL LOGIN: Client "192.168.1.44"' });
+        }
     }
 
-    res.json({ ok: true });
+    res.json({ ok: true, message: `Simulated event triggered for type: ${type}` });
 });
 
 // ─── Socket.IO Real-Time Alerts ──────────────────────────────────────────────
@@ -166,13 +190,18 @@ smtpDetectorEvents.on('alert', (data) => {
     io.emit('alert', data);
 });
 
+// Broadcast FIM Alerts
+fimEvents.on('alert', (data) => {
+    io.emit('alert', data);
+});
 
-// ─── Log Monitoring ──────────────────────────────────────────────────────────
+
+// ─── Log & System Monitoring ──────────────────────────────────────────────────
 const LOG_FILE = '/var/log/auth.log';
 
 let started = false;
 
-setTimeout(() => {
+setTimeout(async () => {
     started = true;
     console.log("✅ Now monitoring ONLY new logs...\n");
     console.log(`✅ Web Dashboard available at http://localhost:${PORT}\n`);
@@ -182,6 +211,13 @@ setTimeout(() => {
     // Start FTP and SMTP Monitors (paths can be configured if needed)
     startFTPMonitor();
     startSMTPMonitor();
+    
+    // Initialize File Integrity Monitoring (FIM)
+    try {
+        await initializeFIM();
+    } catch (err) {
+        console.error('Error initializing FIM:', err.message);
+    }
 }, 2000);
 
 readLogs(LOG_FILE, (line) => {

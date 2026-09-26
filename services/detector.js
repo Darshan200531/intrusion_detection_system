@@ -89,7 +89,7 @@ function detect(log) {
         if (count >= rules.FAILED_LOGIN_THRESHOLD) {
             console.log(`🚨 ALERT: Possible Brute-force Attack from ${ip} | ${count} attempts in ${rules.TIME_WINDOW_SECONDS}s\n`);
 
-            blockIp(ip);
+            blockIp(ip, `Brute-force attack detected (${count} attempts in ${rules.TIME_WINDOW_SECONDS}s)`, 'SSH');
             detectorEvents.emit('alert', { type: 'attack', ip, count, timestamp: new Date().toLocaleString(), severity: 'critical', message: `Brute-force attack detected (${count} attempts in ${rules.TIME_WINDOW_SECONDS}s). IP blocked.`, detectionRule: 'Brute Force SSH' });
 
             saveLog({

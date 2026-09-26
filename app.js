@@ -9,7 +9,7 @@ const connectDB = require('./config/db');
 const readLogs = require('./services/logReader');
 const parseLog = require('./services/parser');
 const { detect, detectorEvents } = require('./services/detector');
-const { unblockIp, getBlockedIps } = require('./services/blocker');
+const { unblockIp, getBlockedIps, blockerEvents } = require('./services/blocker');
 const SSHLog = require('./models/SSHLog');
 
 // FTP modules
@@ -85,19 +85,32 @@ app.get('/api/ssh/history', async (req, res) => {
 });
 
 // ─── IPTable / Blocked IPs API ────────────────────────────────────────────────
-app.get('/api/blocked-ips', (req, res) => {
-    res.json(getBlockedIps());
+app.get('/api/blocked-ips', async (req, res) => {
+    try {
+        const ips = await getBlockedIps();
+        res.json(ips);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-app.delete('/api/blocked-ips/:ip', (req, res) => {
+app.delete('/api/blocked-ips/:ip', async (req, res) => {
     const ip = req.params.ip;
-    const success = unblockIp(ip);
+    const success = await unblockIp(ip);
     if (success) {
-        // Broadcast updated list to all connected clients
-        io.emit('blocked_ips_update', getBlockedIps());
         res.json({ ok: true, message: `IP ${ip} unblocked successfully` });
     } else {
         res.status(404).json({ ok: false, message: `IP ${ip} not found in block list` });
+    }
+});
+
+// Broadcast real-time blocked IPs list update whenever blockerEvents emits a change
+blockerEvents.on('change', async () => {
+    try {
+        const ips = await getBlockedIps();
+        io.emit('blocked_ips_update', ips);
+    } catch (err) {
+        console.error('Error broadcasting blocked IPs update:', err);
     }
 });
 
@@ -119,16 +132,21 @@ app.post('/api/simulate', (req, res) => {
 });
 
 // ─── Socket.IO Real-Time Alerts ──────────────────────────────────────────────
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
     console.log('✅ Client connected to Socket.IO');
     // Send history of SSH alerts to new clients to maintain previous functionality
     socket.emit('ssh_history', alertHistory);
     // Send current blocked IPs list on connect
-    socket.emit('blocked_ips_update', getBlockedIps());
+    try {
+        const ips = await getBlockedIps();
+        socket.emit('blocked_ips_update', ips);
+    } catch (err) {
+        console.error('Error emitting blocked IPs on connection:', err);
+    }
 });
 
 // Broadcast SSH Alerts
-detectorEvents.on('alert', (data) => {
+detectorEvents.on('alert', async (data) => {
     // Add a service flag for the dashboard
     data.service = 'SSH';
     
@@ -136,11 +154,6 @@ detectorEvents.on('alert', (data) => {
     if (alertHistory.length > 100) alertHistory.shift();
 
     io.emit('alert', data);
-
-    // If an IP was just blocked, broadcast the updated blocked IP list
-    if (data.type === 'attack') {
-        io.emit('blocked_ips_update', getBlockedIps());
-    }
 });
 
 // Broadcast FTP Alerts

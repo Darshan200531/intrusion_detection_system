@@ -45,7 +45,7 @@ const detectFTP = async (log) => {
 
             // Trigger iptables IP blocking for repeated failed logins
             console.log(`🛡️ IPTABLES BLOCK: Triggering IP block for ${ip} due to FTP brute force`);
-            blockIp(ip);
+            blockIp(ip, `Brute force FTP attempt (${ftpFailedAttempts[ip].length} failed logins)`, 'FTP');
 
             ftpFailedAttempts[ip] = []; // reset after alert
         }
@@ -78,7 +78,7 @@ const detectFTP = async (log) => {
                 const threshold = rules.FTP_SUSPICIOUS_THRESHOLD || 3;
                 if (ftpSuspiciousAttempts[ip].length >= threshold) {
                     console.log(`🚨 IPTABLES BLOCK: Blocking IP ${ip} after ${ftpSuspiciousAttempts[ip].length} repeated suspicious FTP uploads`);
-                    blockIp(ip);
+                    blockIp(ip, `Repeated suspicious FTP uploads (${ftpSuspiciousAttempts[ip].length} attempts)`, 'FTP');
                     severity = 'critical';
                     message += ` [IP BLOCKED by iptables]`;
                     detectionRule = 'Repeated FTP Suspicious Transfers';

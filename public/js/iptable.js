@@ -11,7 +11,7 @@ let blockedIpsList = [];
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderIPTable(ips) {
-    blockedIpsList = ips;
+    blockedIpsList = ips || [];
 
     const grid      = document.getElementById('iptable-grid');
     const empty     = document.getElementById('iptable-empty');
@@ -19,13 +19,15 @@ function renderIPTable(ips) {
 
     if (!grid) return;
 
+    const list = Array.isArray(ips) ? ips : [];
+
     // Update badge count
     if (countBadge) {
-        countBadge.textContent = `${ips.length} blocked`;
-        countBadge.classList.toggle('has-blocked', ips.length > 0);
+        countBadge.textContent = `${list.length} blocked`;
+        countBadge.classList.toggle('has-blocked', list.length > 0);
     }
 
-    if (!ips || ips.length === 0) {
+    if (list.length === 0) {
         grid.innerHTML  = '';
         if (empty) empty.style.display = 'flex';
         return;
@@ -33,28 +35,34 @@ function renderIPTable(ips) {
 
     if (empty) empty.style.display = 'none';
 
-    grid.innerHTML = ips.map(ip => `
-        <div class="ip-card" id="ipcard-${ip.replace(/\./g, '-')}" data-ip="${ip}">
-            <div class="ip-card-header">
-                <span class="ip-card-icon">🚫</span>
-                <span class="ip-card-label">Blocked IP</span>
-                <span class="ip-card-status">DROPPED</span>
+    grid.innerHTML = list.map(item => {
+        const ip = typeof item === 'string' ? item : item.ip;
+        if (!ip) return '';
+        const safeIpId = ip.replace(/\./g, '-');
+        return `
+            <div class="ip-card" id="ipcard-${safeIpId}" data-ip="${ip}">
+                <div class="ip-card-header">
+                    <span class="ip-card-icon">🚫</span>
+                    <span class="ip-card-label">Blocked IP</span>
+                    <span class="ip-card-status">DROPPED</span>
+                </div>
+                <div class="ip-address">${ip}</div>
+                <div class="ip-card-rule">
+                    <span class="ip-rule-tag">iptables -A INPUT -s ${ip} -j DROP</span>
+                </div>
+                <button class="btn-unblock" onclick="unblockIp('${ip}')" id="unblock-${safeIpId}">
+                    🔓 Unblock IP
+                </button>
             </div>
-            <div class="ip-address">${ip}</div>
-            <div class="ip-card-rule">
-                <span class="ip-rule-tag">iptables -A INPUT -s ${ip} -j DROP</span>
-            </div>
-            <button class="btn-unblock" onclick="unblockIp('${ip}')" id="unblock-${ip.replace(/\./g, '-')}">
-                🔓 Unblock IP
-            </button>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // ─── Unblock ──────────────────────────────────────────────────────────────────
 async function unblockIp(ip) {
-    const btn   = document.getElementById(`unblock-${ip.replace(/\./g, '-')}`);
-    const card  = document.getElementById(`ipcard-${ip.replace(/\./g, '-')}`);
+    const safeIpId = ip.replace(/\./g, '-');
+    const btn   = document.getElementById(`unblock-${safeIpId}`);
+    const card  = document.getElementById(`ipcard-${safeIpId}`);
 
     if (!btn) return;
 
@@ -74,7 +82,7 @@ async function unblockIp(ip) {
                 card.style.animation = 'ipCardOut 0.4s ease forwards';
                 setTimeout(() => {
                     // Remove from local list and re-render
-                    blockedIpsList = blockedIpsList.filter(b => b !== ip);
+                    blockedIpsList = blockedIpsList.filter(b => (typeof b === 'string' ? b : b.ip) !== ip);
                     renderIPTable(blockedIpsList);
                     showToast(`✅ ${ip} has been unblocked`, 'success');
                 }, 400);
@@ -129,6 +137,9 @@ async function fetchBlockedIps() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // Initial fetch of blocked IPs on page load
+    fetchBlockedIps();
+
     // Refresh button
     document.getElementById('iptable-refresh')?.addEventListener('click', fetchBlockedIps);
 

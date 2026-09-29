@@ -45,7 +45,8 @@ app.get('/', (req, res) => {
 const sshRoutes = require('./routes/sshRoutes');
 
 // FIM modules
-const { initializeFIM, fimEvents } = require('./services/fileIntegrityMonitor');
+const { initializeFIM, fimEvents, saveAndBroadcastFIMEvent } = require('./services/fileIntegrityMonitor');
+const fimConfig = require('./config/fimConfig');
 const fimRoutes = require('./routes/fimRoutes');
 
 // Routes for services
@@ -150,6 +151,48 @@ app.post('/api/simulate', (req, res) => {
         for (let i = 0; i < 5; i++) {
             detectFTP({ type: 'failed_login', ip: '192.168.1.44', username: 'ftphacker', raw: '[ftphacker] FAIL LOGIN: Client "192.168.1.44"' });
         }
+    } else if (type === 'ftp_malicious') {
+        detectFTP({
+            type: 'file_upload',
+            ip: '192.168.1.188',
+            username: 'attacker',
+            filename: 'c99_webshell.php',
+            filesize: 64210,
+            action: 'UPLOAD',
+            raw: '[attacker] OK UPLOAD: Client "192.168.1.188", "/uploads/c99_webshell.php", 64210 bytes'
+        });
+    } else if (type === 'ftp_ransomware') {
+        detectFTP({
+            type: 'file_upload',
+            ip: '10.0.0.99',
+            username: 'intruder',
+            filename: 'encryptor_payload.sh',
+            filesize: 12050,
+            action: 'UPLOAD',
+            raw: '[intruder] OK UPLOAD: Client "10.0.0.99", "/tmp/encryptor_payload.sh", 12050 bytes'
+        });
+    } else if (type === 'fim_modified' || type === 'fim') {
+        const target = (fimConfig.monitoredFiles && fimConfig.monitoredFiles[fimConfig.monitoredFiles.length - 1]) || '/etc/ssh/sshd_config';
+        saveAndBroadcastFIMEvent({
+            filePath: target,
+            eventType: 'FILE_MODIFIED',
+            oldHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+            newHash: 'a5c7d8e9f0123456789abcdef0123456789abcdef0123456789abcdef0123456',
+            severity: 'HIGH',
+            timestamp: new Date(),
+            message: `File integrity violation: ${target} was modified!`
+        });
+    } else if (type === 'fim_deleted') {
+        const target = (fimConfig.monitoredFiles && fimConfig.monitoredFiles[fimConfig.monitoredFiles.length - 1]) || '/etc/ssh/sshd_config';
+        saveAndBroadcastFIMEvent({
+            filePath: target,
+            eventType: 'FILE_DELETED',
+            oldHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+            newHash: null,
+            severity: 'CRITICAL',
+            timestamp: new Date(),
+            message: `Critical alert: Monitored file ${target} was deleted!`
+        });
     }
 
     res.json({ ok: true, message: `Simulated event triggered for type: ${type}` });
@@ -193,6 +236,10 @@ smtpDetectorEvents.on('alert', (data) => {
 // Broadcast FIM Alerts
 fimEvents.on('alert', (data) => {
     io.emit('alert', data);
+});
+
+fimEvents.on('stats_update', (stats) => {
+    io.emit('fim_stats_update', stats);
 });
 
 

@@ -51,44 +51,64 @@ const detectFTP = async (log) => {
         }
     }
 
-    // 3. Detect Suspicious File Uploads
+    // 3. Detect Malicious / Suspicious File Uploads
+    let isMaliciousFile = false;
+    let fileCategory = null;
+
     if (type === 'file_upload' && filename) {
         // Extract file extension cleanly
         const cleanFilename = filename.split('/').pop().split('\\').pop();
         const extMatch = cleanFilename.match(/\.([0-9a-z]+)(?:[\?#]|$)/i);
-        
-        // Suspicious extensions for Ubuntu server: .sh, .py, .pl, .rb, .php, .bin, .run, .deb, .AppImage
-        const suspiciousExts = ['sh', 'py', 'pl', 'rb', 'php', 'bin', 'run', 'deb', 'appimage'];
-        
-        if (extMatch) {
-            const ext = extMatch[1].toLowerCase();
-            if (suspiciousExts.includes(ext)) {
-                severity = 'high';
-                reason = `Contains suspicious executable/script file extension (.${ext})`;
-                message = `FTP Suspicious File Transfer: ${cleanFilename} uploaded by ${username || 'unknown'} from ${ip}. Reason: Contains suspicious executable/script file extension (.${ext})`;
-                detectionRule = 'FTP Suspicious File Transfer';
-                shouldAlert = true;
+        const ext = extMatch ? extMatch[1].toLowerCase() : '';
 
-                // Track repeated suspicious transfers per IP for iptables blocking threshold
-                if (!ftpSuspiciousAttempts[ip]) ftpSuspiciousAttempts[ip] = [];
-                ftpSuspiciousAttempts[ip].push(now);
+        // Known malicious script / web shell extensions
+        const webShellExts = ['php', 'phtml', 'php3', 'php4', 'php5', 'phps', 'jsp', 'asp', 'aspx', 'cgi', 'pl', 'py', 'sh', 'bash', 'rb'];
+        // Executables, binaries, and installer extensions
+        const execExts = ['bin', 'run', 'exe', 'elf', 'deb', 'rpm', 'appimage', 'msi', 'bat', 'cmd', 'ps1', 'vbs', 'jar', 'scr', 'hta'];
+        // Obfuscation / double extension patterns (e.g. evil.php.png, attack.sh.txt)
+        const isDoubleExt = /\.(php|sh|py|pl|exe|bat|bin|cmd|vbs|ps1)\.[a-z0-9]+$/i.test(cleanFilename);
+        // Signature patterns commonly found in malicious payload uploads
+        const isMaliciousPattern = /(webshell|c99|r57|b374k|weevely|shell|backdoor|rootkit|exploit|payload|trojan|reverse|meterpreter|malware|ransom|mimikatz)/i.test(cleanFilename);
 
-                ftpSuspiciousAttempts[ip] = ftpSuspiciousAttempts[ip].filter(t => now - t <= rules.FTP_TIME_WINDOW_SECONDS * 1000);
+        if (isMaliciousPattern || isDoubleExt || webShellExts.includes(ext) || execExts.includes(ext)) {
+            isMaliciousFile = true;
+            fileCategory = isMaliciousPattern
+                ? 'Malicious Payload / Web Shell'
+                : isDoubleExt
+                ? 'Double Extension Evasion'
+                : webShellExts.includes(ext)
+                ? 'Web Shell / Script'
+                : 'Executable / Binary';
 
-                const threshold = rules.FTP_SUSPICIOUS_THRESHOLD || 3;
-                if (ftpSuspiciousAttempts[ip].length >= threshold) {
-                    console.log(`🚨 IPTABLES BLOCK: Blocking IP ${ip} after ${ftpSuspiciousAttempts[ip].length} repeated suspicious FTP uploads`);
-                    blockIp(ip, `Repeated suspicious FTP uploads (${ftpSuspiciousAttempts[ip].length} attempts)`, 'FTP');
-                    severity = 'critical';
-                    message += ` [IP BLOCKED by iptables]`;
-                    detectionRule = 'Repeated FTP Suspicious Transfers';
-                    ftpSuspiciousAttempts[ip] = [];
-                }
+            severity = (isMaliciousPattern || isDoubleExt || ['php', 'jsp', 'exe', 'bin', 'sh', 'elf'].includes(ext)) ? 'critical' : 'high';
+            
+            if (isMaliciousPattern) {
+                reason = `Malicious pattern / exploit tool signature detected in file name (${cleanFilename})`;
+            } else if (isDoubleExt) {
+                reason = `Evasion attempt: double extension detected in file name (${cleanFilename})`;
+            } else {
+                reason = `Unauthorized ${fileCategory} file upload (.${ext})`;
             }
-        }
-        
-        // Detect Large File Uploads (if not already marked suspicious)
-        if (filesize && (filesize / (1024 * 1024)) > rules.FTP_MAX_UPLOAD_MB && severity === 'low') {
+
+            detectionRule = 'Malicious File Detection';
+            message = `FTP Malicious File Upload Detected: ${cleanFilename} uploaded by ${username || 'unknown'} from ${ip}. Reason: ${reason}`;
+            shouldAlert = true;
+
+            // Track repeated suspicious/malicious transfers per IP for iptables blocking threshold
+            if (!ftpSuspiciousAttempts[ip]) ftpSuspiciousAttempts[ip] = [];
+            ftpSuspiciousAttempts[ip].push(now);
+
+            ftpSuspiciousAttempts[ip] = ftpSuspiciousAttempts[ip].filter(t => now - t <= rules.FTP_TIME_WINDOW_SECONDS * 1000);
+
+            const threshold = rules.FTP_SUSPICIOUS_THRESHOLD || 3;
+            if (ftpSuspiciousAttempts[ip].length >= threshold || severity === 'critical') {
+                console.log(`🚨 IPTABLES BLOCK: Blocking IP ${ip} due to malicious FTP file upload (${cleanFilename})`);
+                blockIp(ip, `Malicious FTP file upload: ${cleanFilename}`, 'FTP');
+                message += ` [IP BLOCKED by iptables]`;
+                ftpSuspiciousAttempts[ip] = [];
+            }
+        } else if (filesize && (filesize / (1024 * 1024)) > rules.FTP_MAX_UPLOAD_MB && severity === 'low') {
+            // Detect Large File Uploads (if not already marked malicious)
             severity = 'medium';
             reason = `Large file upload exceeds threshold (${rules.FTP_MAX_UPLOAD_MB}MB)`;
             message = `Large file uploaded: ${cleanFilename} (${(filesize / (1024 * 1024)).toFixed(2)} MB)`;
@@ -124,12 +144,15 @@ const detectFTP = async (log) => {
                 ip: ip,
                 sourceIp: ip,
                 username: username || '',
-                filename: filename || '',
+                filename: filename ? (filename.split('/').pop().split('\\').pop()) : '',
+                fullFilename: filename || '',
                 action: currentAction,
                 severity: severity,
                 reason: reason || message,
                 message: message,
                 detectionRule: detectionRule,
+                isMaliciousFile: isMaliciousFile,
+                fileCategory: fileCategory,
                 timestamp: (timestamp || new Date()).toLocaleString()
             });
         }

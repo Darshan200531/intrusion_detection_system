@@ -8,7 +8,7 @@ let alertsLineChart = null;
 let servicesDoughnutChart = null;
 
 // Track real-time counts per service for live chart updates
-const liveCounts = { SSH: 0, FTP: 0, SMTP: 0 };
+const liveCounts = { SSH: 0, FTP: 0, SMTP: 0, FIM: 0 };
 
 async function initAnalytics() {
     const overviewCards = document.getElementById('overview-cards');
@@ -18,16 +18,21 @@ async function initAnalytics() {
         const data = await res.json();
 
         const { totalLogs, criticalAlerts } = data;
-        const totalSSH = totalLogs.SSH || 0;
-        const totalFTP = totalLogs.FTP || 0;
-        const totalSMTP = totalLogs.SMTP || 0;
-        const totalAll = totalSSH + totalFTP + totalSMTP;
-        const critAll = (criticalAlerts.SSH || 0) + (criticalAlerts.FTP || 0) + (criticalAlerts.SMTP || 0);
+        const totalSSH = (totalLogs && totalLogs.SSH) || 0;
+        const totalFTP = (totalLogs && totalLogs.FTP) || 0;
+        const totalSMTP = (totalLogs && totalLogs.SMTP) || 0;
+        const totalFIM = (totalLogs && totalLogs.FIM) || 0;
+        const totalAll = totalSSH + totalFTP + totalSMTP + totalFIM;
+        const critAll = ((criticalAlerts && criticalAlerts.SSH) || 0) +
+                        ((criticalAlerts && criticalAlerts.FTP) || 0) +
+                        ((criticalAlerts && criticalAlerts.SMTP) || 0) +
+                        ((criticalAlerts && criticalAlerts.FIM) || 0);
 
         // Seed live counts
         liveCounts.SSH = totalSSH;
         liveCounts.FTP = totalFTP;
         liveCounts.SMTP = totalSMTP;
+        liveCounts.FIM = totalFIM;
 
         // Render summary cards
         if (overviewCards) {
@@ -52,6 +57,11 @@ async function initAnalytics() {
                     <p class="value" id="ov-smtp" style="color:#f59e0b;">${totalSMTP}</p>
                     <span class="card-icon">✉️</span>
                 </div>
+                <div class="card">
+                    <h3>FIM Events</h3>
+                    <p class="value" id="ov-fim" style="color:#10b981;">${totalFIM}</p>
+                    <span class="card-icon">📄</span>
+                </div>
                 <div class="card alert-card">
                     <h3>Critical Alerts</h3>
                     <p class="value" id="ov-critical" style="color:#ef4444;">${critAll}</p>
@@ -60,7 +70,7 @@ async function initAnalytics() {
             `;
         }
 
-        renderCharts(totalSSH, totalFTP, totalSMTP);
+        renderCharts(totalSSH, totalFTP, totalSMTP, totalFIM);
 
     } catch (err) {
         console.error('Analytics fetch error:', err);
@@ -70,7 +80,7 @@ async function initAnalytics() {
     }
 }
 
-function renderCharts(ssh, ftp, smtp) {
+function renderCharts(ssh, ftp, smtp, fim = 0) {
     // ── Doughnut: Alerts by Service ──────────────────────────
     const ctxDoughnut = document.getElementById('servicesChart');
     if (ctxDoughnut) {
@@ -78,18 +88,20 @@ function renderCharts(ssh, ftp, smtp) {
         servicesDoughnutChart = new Chart(ctxDoughnut, {
             type: 'doughnut',
             data: {
-                labels: ['SSH', 'FTP', 'SMTP'],
+                labels: ['SSH', 'FTP', 'SMTP', 'FIM'],
                 datasets: [{
-                    data: [ssh, ftp, smtp],
+                    data: [ssh, ftp, smtp, fim],
                     backgroundColor: [
                         'rgba(59,130,246,0.75)',
                         'rgba(167,139,250,0.75)',
-                        'rgba(245,158,11,0.75)'
+                        'rgba(245,158,11,0.75)',
+                        'rgba(16,185,129,0.75)'
                     ],
                     borderColor: [
                         'rgba(59,130,246,1)',
                         'rgba(167,139,250,1)',
-                        'rgba(245,158,11,1)'
+                        'rgba(245,158,11,1)',
+                        'rgba(16,185,129,1)'
                     ],
                     borderWidth: 2,
                     hoverOffset: 10
@@ -122,19 +134,21 @@ function renderCharts(ssh, ftp, smtp) {
         alertsLineChart = new Chart(ctxBar, {
             type: 'bar',
             data: {
-                labels: ['SSH', 'FTP', 'SMTP'],
+                labels: ['SSH', 'FTP', 'SMTP', 'FIM'],
                 datasets: [{
                     label: 'Total Events',
-                    data: [ssh, ftp, smtp],
+                    data: [ssh, ftp, smtp, fim],
                     backgroundColor: [
                         'rgba(59,130,246,0.4)',
                         'rgba(167,139,250,0.4)',
-                        'rgba(245,158,11,0.4)'
+                        'rgba(245,158,11,0.4)',
+                        'rgba(16,185,129,0.4)'
                     ],
                     borderColor: [
                         'rgba(59,130,246,1)',
                         'rgba(167,139,250,1)',
-                        'rgba(245,158,11,1)'
+                        'rgba(245,158,11,1)',
+                        'rgba(16,185,129,1)'
                     ],
                     borderWidth: 2,
                     borderRadius: 8,
@@ -171,13 +185,13 @@ function renderCharts(ssh, ftp, smtp) {
 }
 
 // Called when a new live alert arrives via Socket.IO — update overview counts and charts
-function updateAnalyticsOnAlert(service) {
+function updateAnalyticsOnAlert(service, severity) {
     if (!liveCounts[service] && liveCounts[service] !== 0) return;
 
     liveCounts[service]++;
 
     // Update individual count cards if visible
-    const elMap = { SSH: 'ov-ssh', FTP: 'ov-ftp', SMTP: 'ov-smtp' };
+    const elMap = { SSH: 'ov-ssh', FTP: 'ov-ftp', SMTP: 'ov-smtp', FIM: 'ov-fim' };
     const el = document.getElementById(elMap[service]);
     if (el) el.textContent = liveCounts[service];
 
@@ -187,14 +201,22 @@ function updateAnalyticsOnAlert(service) {
         totalEl.textContent = cur + 1;
     }
 
+    if (severity && (severity.toLowerCase() === 'critical' || severity.toLowerCase() === 'high')) {
+        const critEl = document.getElementById('ov-critical');
+        if (critEl) {
+            const curCrit = parseInt(critEl.textContent) || 0;
+            critEl.textContent = curCrit + 1;
+        }
+    }
+
     // Update charts
-    if (servicesDoughnutChart) {
-        const idx = { SSH: 0, FTP: 1, SMTP: 2 }[service];
+    const idxMap = { SSH: 0, FTP: 1, SMTP: 2, FIM: 3 };
+    const idx = idxMap[service];
+    if (servicesDoughnutChart && idx !== undefined) {
         servicesDoughnutChart.data.datasets[0].data[idx] = liveCounts[service];
         servicesDoughnutChart.update('none');
     }
-    if (alertsLineChart) {
-        const idx = { SSH: 0, FTP: 1, SMTP: 2 }[service];
+    if (alertsLineChart && idx !== undefined) {
         alertsLineChart.data.datasets[0].data[idx] = liveCounts[service];
         alertsLineChart.update('none');
     }

@@ -19,6 +19,12 @@ router.get('/stats', async (req, res) => {
         const recentEvents = await FTPLog.countDocuments({ 
             timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } 
         });
+        const maliciousCount = await FTPLog.countDocuments({
+            $or: [
+                { detectionRule: { $regex: /malicious|suspicious/i } },
+                { severity: { $in: ['high', 'critical'] }, filename: { $ne: null } }
+            ]
+        });
         
         // Group by rule (only alerted events have rules)
         const ruleStats = await FTPLog.aggregate([
@@ -29,8 +35,24 @@ router.get('/stats', async (req, res) => {
         res.json({
             totalAlerts,
             recentEvents,
+            maliciousCount,
             ruleStats
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get malicious / suspicious FTP file upload alerts specifically
+router.get('/malicious', async (req, res) => {
+    try {
+        const logs = await FTPLog.find({
+            $or: [
+                { detectionRule: { $regex: /malicious|suspicious/i } },
+                { severity: { $in: ['high', 'critical'] }, filename: { $ne: null } }
+            ]
+        }).sort({ timestamp: -1 }).limit(50).lean();
+        res.json(logs);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

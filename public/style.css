@@ -828,4 +828,131 @@ body {
     background: rgba(239, 68, 68, 0.08);
 }
 
+/* ─── Malicious File Detection Styles ───────────────────────────────────────── */
+.section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.section-title-wrap h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fca5a5;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-subtitle {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 0.2rem;
+}
+
+.btn-sim-malicious {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    padding: 0.4rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-sim-malicious:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.6);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+}
+
+.empty-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.alert-item.ftp-malicious-alert {
+    background: rgba(30, 20, 35, 0.85);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-left: 5px solid #ef4444;
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 4px 18px rgba(239, 68, 68, 0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    animation: pulseBorder 2s infinite ease-in-out;
+}
+
+@keyframes pulseBorder {
+    0%, 100% { border-color: rgba(239, 68, 68, 0.35); box-shadow: 0 4px 18px rgba(239, 68, 68, 0.12); }
+    50% { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 4px 24px rgba(239, 68, 68, 0.25); }
+}
+
+.alert-item.ftp-malicious-alert.high {
+    border-left-color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.malicious-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.malicious-threat-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.malicious-badge {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.3rem;
+    letter-spacing: 0.05em;
+}
+
+.malicious-filename code {
+    font-size: 0.95rem;
+    color: #fef08a;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.3rem;
+}
+
+.malicious-details-row {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+}
+
+.detail-tag {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.3rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.malicious-reason {
+    font-size: 0.82rem;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.08);
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.4rem;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
 

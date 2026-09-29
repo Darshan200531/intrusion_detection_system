@@ -51,32 +51,46 @@ function renderFIMView(stats) {
     }
 }
 
-// ─── Fetch FIM Stats & Events ────────────────────────────────────────────────
-async function fetchFIMData() {
+// ─── Fetch FIM Stats Only (does not touch alert feed) ────────────────────────
+async function fetchFIMStats() {
     try {
-        const [statsRes, eventsRes] = await Promise.all([
-            fetch('/api/fim/stats'),
-            fetch('/api/fim/events')
-        ]);
-
-        if (statsRes.ok) {
-            const stats = await statsRes.json();
+        const res = await fetch('/api/fim/stats');
+        if (res.ok) {
+            const stats = await res.json();
             renderFIMView(stats);
         }
+    } catch (err) {
+        console.error('Error fetching FIM stats:', err);
+    }
+}
 
-        if (eventsRes.ok) {
-            const events = await eventsRes.json();
+// ─── Fetch Initial FIM Events on Page Load ──────────────────────────────────
+async function loadInitialFIMEvents() {
+    try {
+        const res = await fetch('/api/fim/events');
+        if (res.ok) {
+            const events = await res.json();
             const container = document.getElementById('fim-alerts-container');
             const emptyState = document.getElementById('fim-empty-state');
             if (container) {
-                // Clear container except empty state
                 container.querySelectorAll('.alert-item').forEach(el => el.remove());
-                events.reverse().forEach(ev => handleNewFIMAlert(ev, false));
+                if (events && events.length > 0) {
+                    if (emptyState) emptyState.style.display = 'none';
+                    // Render oldest first so prepending leaves newest at top
+                    [...events].reverse().forEach(ev => handleNewFIMAlert(ev, false));
+                } else {
+                    if (emptyState) emptyState.style.display = 'block';
+                }
             }
         }
     } catch (err) {
-        console.error('Error loading FIM data:', err);
+        console.error('Error loading FIM events:', err);
     }
+}
+
+// ─── Full Data Refresh (Stats + Baselines + Feed) ───────────────────────────
+async function fetchFIMData() {
+    await Promise.all([fetchFIMStats(), loadInitialFIMEvents()]);
 }
 
 // ─── Rebuild Baselines ──────────────────────────────────────────────────────
@@ -94,7 +108,7 @@ async function rebuildSingleBaseline(filePath) {
         const data = await res.json();
         if (data.ok) {
             if (typeof showToast === 'function') showToast(`✅ Baseline rebuilt for ${filePath}`, 'success');
-            fetchFIMData();
+            fetchFIMStats();
         } else {
             if (typeof showToast === 'function') showToast(`❌ ${data.error}`, 'error');
         }
@@ -117,10 +131,27 @@ async function rebuildAllBaselines() {
         const data = await res.json();
         if (data.ok) {
             if (typeof showToast === 'function') showToast(`✅ Rebuilt baselines for ${data.baselines ? data.baselines.length : 0} file(s)`, 'success');
-            fetchFIMData();
+            fetchFIMStats();
         }
     } catch (err) {
         console.error('Rebuild all baselines error:', err);
+    }
+}
+
+// ─── Simulate FIM Event (for testing) ───────────────────────────────────────
+async function simulateFIMViolation() {
+    try {
+        const res = await fetch('/api/fim/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventType: 'FILE_MODIFIED' })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            console.log('⚡ Simulated FIM event triggered:', data);
+        }
+    } catch (err) {
+        console.error('Simulate FIM error:', err);
     }
 }
 
@@ -136,9 +167,13 @@ function handleNewFIMAlert(data, incrementStats = true) {
     const filePath  = data.filePath  || '—';
     const oldHash   = data.oldHash   ? `<br><small style="color:#94a3b8;">Old SHA-256: <code>${data.oldHash.substring(0, 16)}...</code></small>` : '';
     const newHash   = data.newHash   ? `<br><small style="color:#f87171;">New SHA-256: <code>${data.newHash.substring(0, 16)}...</code></small>` : '';
+    const message   = data.message   ? `<br><small style="color:#cbd5e1;font-size:0.8rem;">${data.message}</small>` : '';
 
     let icon = '⚠️', severity = data.severity || 'HIGH';
-    if (eventType === 'FILE_DELETED' || severity === 'CRITICAL') icon = '🚨';
+    if (eventType === 'FILE_DELETED' || severity === 'CRITICAL' || severity === 'critical') {
+        icon = '🚨';
+        severity = 'CRITICAL';
+    }
 
     const el = document.createElement('div');
     el.className = `alert-item fim-alert ${severity.toLowerCase()}`;
@@ -149,6 +184,7 @@ function handleNewFIMAlert(data, incrementStats = true) {
                 File: <code>${filePath}</code>
                 ${oldHash}
                 ${newHash}
+                ${message}
             </div>
         </div>
         <div class="alert-time">${data.timestamp || new Date().toLocaleString()}</div>
@@ -160,8 +196,25 @@ function handleNewFIMAlert(data, incrementStats = true) {
     const items = container.querySelectorAll('.alert-item');
     if (items.length > 50) items[items.length - 1].remove();
 
+    // Only update stats, NEVER wipe the alerts feed!
     if (incrementStats) {
-        fetchFIMData();
+        // Optimistically increment cards
+        const modEl = document.getElementById('count-fim-modified');
+        const delEl = document.getElementById('count-fim-deleted');
+        const critEl = document.getElementById('count-fim-critical');
+
+        if (eventType === 'FILE_DELETED' && delEl) {
+            delEl.textContent = (parseInt(delEl.textContent) || 0) + 1;
+        } else if (modEl) {
+            modEl.textContent = (parseInt(modEl.textContent) || 0) + 1;
+        }
+
+        if ((severity === 'CRITICAL' || severity === 'HIGH') && critEl) {
+            critEl.textContent = (parseInt(critEl.textContent) || 0) + 1;
+        }
+
+        // Fetch fresh stats from backend (without clearing alert feed)
+        fetchFIMStats();
     }
 }
 
@@ -171,13 +224,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('fim-refresh')?.addEventListener('click', fetchFIMData);
     document.getElementById('fim-rebuild-all')?.addEventListener('click', rebuildAllBaselines);
+    document.getElementById('fim-simulate-btn')?.addEventListener('click', simulateFIMViolation);
 
     const fimNavBtn = document.querySelector('[data-target="fim-view"]');
     if (fimNavBtn) {
-        fimNavBtn.addEventListener('click', fetchFIMData);
+        fimNavBtn.addEventListener('click', fetchFIMStats);
     }
 });
 
 window.handleNewFIMAlert = handleNewFIMAlert;
 window.fetchFIMData = fetchFIMData;
+window.fetchFIMStats = fetchFIMStats;
 window.rebuildSingleBaseline = rebuildSingleBaseline;
+window.simulateFIMViolation = simulateFIMViolation;

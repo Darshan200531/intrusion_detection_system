@@ -90,7 +90,32 @@
                             <h3>Recent Events (24h)</h3>
                             <p class="value" id="count-ftp-recent">0</p>
                         </div>
+                        <div class="card alert-card" id="card-ftp-malicious">
+                            <h3>Malicious Files Detected</h3>
+                            <p class="value" id="count-ftp-malicious" style="color: #ef4444;">0</p>
+                            <span class="card-icon">☣️</span>
+                        </div>
                     </section>
+
+                    <!-- Dedicated Malicious File Detection Section -->
+                    <section class="alerts-section malicious-section" style="margin-bottom: 2rem;">
+                        <div class="section-header-row">
+                            <div class="section-title-wrap">
+                                <h2>☣️ Malicious File Detection Alerts</h2>
+                                <p class="section-subtitle">Real-time alerts for malicious payloads, web shells, and unauthorized executable uploads</p>
+                            </div>
+                            <button class="btn-refresh btn-sim-malicious" id="btn-sim-ftp-malicious" title="Simulate Malicious File Upload">⚡ Test Malicious Upload</button>
+                        </div>
+                        <div class="empty-state" id="ftp-malicious-empty-state">
+                            <div class="empty-icon">🛡️</div>
+                            <p>No malicious files detected in FTP transfers</p>
+                            <small>Uploaded web shells, exploit scripts, or dangerous executables will appear here immediately</small>
+                        </div>
+                        <div class="alerts-container" id="ftp-malicious-alerts-container">
+                            <!-- Populated by JS -->
+                        </div>
+                    </section>
+
                     <section class="alerts-section">
                         <h2>FTP Live Feed</h2>
                         <div class="alerts-container" id="ftp-alerts-container">
@@ -155,6 +180,7 @@
                             <p class="iptable-subtitle">SHA-256 cryptographic baseline verification & real-time file modification detection</p>
                         </div>
                         <div class="iptable-header-right">
+                            <button class="btn-refresh" id="fim-simulate-btn" title="Simulate file modification violation alert">⚡ Test Violation</button>
                             <button class="btn-refresh" id="fim-rebuild-all" title="Rebuild trusted baselines for all files">🔄 Rebuild Baselines</button>
                             <button class="btn-refresh" id="fim-refresh" title="Refresh FIM status">↻ Refresh</button>
                         </div>

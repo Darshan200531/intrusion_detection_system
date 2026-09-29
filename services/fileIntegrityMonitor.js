@@ -188,10 +188,18 @@ async function handleFileChangeEvent(filePath) {
  */
 async function saveAndBroadcastFIMEvent(eventData) {
     try {
-        const fimEventDoc = new FileIntegrityEvent(eventData);
-        await fimEventDoc.save();
+        try {
+            const fimEventDoc = new FileIntegrityEvent(eventData);
+            await fimEventDoc.save();
+        } catch (dbErr) {
+            console.warn(`⚠️ [FIM] DB save skipped or failed: ${dbErr.message}`);
+        }
 
         console.log(`🚨 [FIM ALERT] [${eventData.severity}] ${eventData.eventType}: ${eventData.filePath}`);
+
+        const ts = eventData.timestamp instanceof Date 
+            ? eventData.timestamp.toLocaleString() 
+            : (eventData.timestamp || new Date().toLocaleString());
 
         // Broadcast to dashboard
         fimEvents.emit('alert', {
@@ -201,9 +209,9 @@ async function saveAndBroadcastFIMEvent(eventData) {
             filePath: eventData.filePath,
             oldHash: eventData.oldHash,
             newHash: eventData.newHash,
-            severity: eventData.severity,
+            severity: (eventData.severity || 'HIGH').toUpperCase(),
             message: eventData.message,
-            timestamp: eventData.timestamp.toLocaleString()
+            timestamp: ts
         });
 
         // Email Alert for HIGH and CRITICAL events
@@ -214,7 +222,7 @@ async function saveAndBroadcastFIMEvent(eventData) {
         // Trigger FIM status refresh
         broadcastFIMStats();
     } catch (err) {
-        console.error(`❌ [FIM] Error saving event: ${err.message}`);
+        console.error(`❌ [FIM] Error broadcasting event: ${err.message}`);
     }
 }
 
@@ -233,13 +241,21 @@ function monitorFile(filePath) {
 
     try {
         const watcher = fs.watch(filePath, (eventType) => {
+            if (eventType === 'rename') {
+                // On Windows/Linux, atomic writes (temp file replace) trigger a rename event.
+                // Re-bind watcher after a brief delay so subsequent modifications continue being tracked!
+                try { watcher.close(); } catch(e) {}
+                activeWatchers.delete(filePath);
+                setTimeout(() => monitorFile(filePath), 300);
+            }
             handleFileChangeEvent(filePath);
         });
 
         watcher.on('error', (err) => {
             console.error(`⚠️ [FIM] Watcher error on ${filePath}: ${err.message}`);
-            watcher.close();
+            try { watcher.close(); } catch(e) {}
             activeWatchers.delete(filePath);
+            setTimeout(() => monitorFile(filePath), 1000);
         });
 
         activeWatchers.set(filePath, watcher);
@@ -316,6 +332,16 @@ async function initializeFIM() {
     const files = fimConfig.monitoredFiles || [];
 
     for (const filePath of files) {
+        // If it's a test file and doesn't exist, create it with initial content so monitoring starts immediately
+        if (!fs.existsSync(filePath) && filePath.toLowerCase().includes('fim-test.txt')) {
+            try {
+                fs.writeFileSync(filePath, 'Initial FIM monitored test file content\n', 'utf8');
+                console.log(`📝 [FIM] Created initial test file: ${filePath}`);
+            } catch (err) {
+                console.warn(`⚠️ [FIM] Could not create test file ${filePath}: ${err.message}`);
+            }
+        }
+
         // Create baseline if missing (does NOT overwrite existing trusted baseline)
         await createBaseline(filePath, false);
         // Attach filesystem monitor
@@ -352,5 +378,7 @@ module.exports = {
     getFIMSummaryStats,
     rebuildBaseline,
     handleFileChangeEvent,
+    saveAndBroadcastFIMEvent,
+    broadcastFIMStats,
     fimEvents
 };

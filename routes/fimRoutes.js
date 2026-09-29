@@ -7,7 +7,8 @@ const {
     getFIMSummaryStats, 
     rebuildBaseline, 
     handleFileChangeEvent, 
-    checkIntegrity 
+    checkIntegrity,
+    saveAndBroadcastFIMEvent
 } = require('../services/fileIntegrityMonitor');
 
 // Get FIM stats and summary
@@ -71,39 +72,41 @@ router.post('/baseline/rebuild', async (req, res) => {
 router.post('/simulate', async (req, res) => {
     try {
         const { eventType, filePath } = req.body;
-        const targetPath = filePath || (fimConfig.monitoredFiles && fimConfig.monitoredFiles[0]) || '/etc/ssh/sshd_config';
+        const targetPath = filePath || (fimConfig.monitoredFiles && fimConfig.monitoredFiles[fimConfig.monitoredFiles.length - 1]) || '/etc/ssh/sshd_config';
 
-        if (eventType === 'FILE_MODIFIED') {
+        if (eventType === 'FILE_MODIFIED' || !eventType) {
             const baseline = await FileBaseline.findOne({ filePath: targetPath });
             const oldHash = baseline ? baseline.hash : 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
             const fakeNewHash = 'a' + oldHash.substring(1);
 
-            const simEvent = new FileIntegrityEvent({
+            const simData = {
                 filePath: targetPath,
                 eventType: 'FILE_MODIFIED',
                 oldHash: oldHash,
                 newHash: fakeNewHash,
                 severity: 'HIGH',
+                timestamp: new Date(),
                 message: `[SIMULATED] File integrity violation: ${targetPath} was modified!`
-            });
-            await simEvent.save();
-            return res.json({ ok: true, event: simEvent });
+            };
+            await saveAndBroadcastFIMEvent(simData);
+            return res.json({ ok: true, event: simData });
         }
 
         if (eventType === 'FILE_DELETED') {
             const baseline = await FileBaseline.findOne({ filePath: targetPath });
             const oldHash = baseline ? baseline.hash : 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
-            const simEvent = new FileIntegrityEvent({
+            const simData = {
                 filePath: targetPath,
                 eventType: 'FILE_DELETED',
                 oldHash: oldHash,
                 newHash: null,
                 severity: 'CRITICAL',
+                timestamp: new Date(),
                 message: `[SIMULATED] Critical alert: Monitored file ${targetPath} was deleted!`
-            });
-            await simEvent.save();
-            return res.json({ ok: true, event: simEvent });
+            };
+            await saveAndBroadcastFIMEvent(simData);
+            return res.json({ ok: true, event: simData });
         }
 
         // Trigger live check

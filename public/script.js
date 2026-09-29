@@ -153,19 +153,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const svc = data.service;
 
         // Update analytics live
-        if (typeof updateAnalyticsOnAlert === 'function') updateAnalyticsOnAlert(svc);
+        if (typeof updateAnalyticsOnAlert === 'function') updateAnalyticsOnAlert(svc, data.severity);
 
         // Update history live (normalise shape)
         if (typeof window.prependHistoryRow === 'function') {
             window.prependHistoryRow({
                 service:       svc,
                 timestamp:     data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
-                sourceIp:      data.ip,
-                username:      data.username,
+                sourceIp:      data.ip || data.sourceIp || data.filePath || '—',
+                username:      data.username || (data.filePath ? `File: ${data.filePath}` : ''),
                 eventType:     data.eventType || data.type,
-                severity:      data.severity || 'low',
+                severity:      (data.severity || 'low').toLowerCase(),
                 message:       data.message  || '',
-                detectionRule: data.detectionRule || null
+                detectionRule: data.detectionRule || (svc === 'FIM' ? 'FIM Integrity Rule' : null)
             });
         }
 
